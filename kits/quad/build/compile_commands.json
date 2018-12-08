@@ -1,0 +1,117 @@
+[
+{
+  "directory": "/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build",
+  "command": "/usr/bin/g++-5  -DQT_CORE_LIB -DQT_GUI_LIB -DQT_WIDGETS_LIB -I/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/quadruped_control_autogen/include -I/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/src -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/src -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/Eigen -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/include -isystem /home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/hebi/include -isystem /usr/include/x86_64-linux-gnu/qt5 -isystem /usr/include/x86_64-linux-gnu/qt5/QtCore -isystem /usr/lib/x86_64-linux-gnu/qt5/mkspecs/linux-g++-64 -isystem /usr/include/x86_64-linux-gnu/qt5/QtGui -isystem /usr/include/x86_64-linux-gnu/qt5/QtWidgets  -O3 -g    -Wall -Wno-int-in-bool-context  -fPIC -std=gnu++11 -o CMakeFiles/quadruped_control.dir/src/quadruped_control.cpp.o -c /home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/src/quadruped_control.cpp",
+  "file": "/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/src/quadruped_control.cpp"
+},
+{
+  "directory": "/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build",
+  "command": "/usr/bin/g++-5  -DQT_CORE_LIB -DQT_GUI_LIB -DQT_WIDGETS_LIB -I/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/quadruped_control_autogen/include -I/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/src -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/src -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/Eigen -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/include -isystem /home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/hebi/include -isystem /usr/include/x86_64-linux-gnu/qt5 -isystem /usr/include/x86_64-linux-gnu/qt5/QtCore -isystem /usr/lib/x86_64-linux-gnu/qt5/mkspecs/linux-g++-64 -isystem /usr/include/x86_64-linux-gnu/qt5/QtGui -isystem /usr/include/x86_64-linux-gnu/qt5/QtWidgets  -O3 -g    -Wall -Wno-int-in-bool-context  -fPIC -std=gnu++11 -o CMakeFiles/quadruped_control.dir/src/input/input_manager_mobile_io.cpp.o -c /home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/src/input/input_manager_mobile_io.cpp",
+  "file": "/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/src/input/input_manager_mobile_io.cpp"
+},
+{
+  "directory": "/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build",
+  "command": "/usr/bin/g++-5  -DQT_CORE_LIB -DQT_GUI_LIB -DQT_WIDGETS_LIB -I/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/quadruped_control_autogen/include -I/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/src -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/src -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/Eigen -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/include -isystem /home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/hebi/include -isystem /usr/include/x86_64-linux-gnu/qt5 -isystem /usr/include/x86_64-linux-gnu/qt5/QtCore -isystem /usr/lib/x86_64-linux-gnu/qt5/mkspecs/linux-g++-64 -isystem /usr/include/x86_64-linux-gnu/qt5/QtGui -isystem /usr/include/x86_64-linux-gnu/qt5/QtWidgets  -O3 -g    -Wall -Wno-int-in-bool-context  -fPIC -std=gnu++11 -o CMakeFiles/quadruped_control.dir/src/xml_util/pugixml.cpp.o -c /home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/src/xml_util/pugixml.cpp",
+  "file": "/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/src/xml_util/pugixml.cpp"
+},
+{
+  "directory": "/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build",
+  "command": "/usr/bin/g++-5  -DQT_CORE_LIB -DQT_GUI_LIB -DQT_WIDGETS_LIB -I/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/quadruped_control_autogen/include -I/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/src -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/src -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/Eigen -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/include -isystem /home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/hebi/include -isystem /usr/include/x86_64-linux-gnu/qt5 -isystem /usr/include/x86_64-linux-gnu/qt5/QtCore -isystem /usr/lib/x86_64-linux-gnu/qt5/mkspecs/linux-g++-64 -isystem /usr/include/x86_64-linux-gnu/qt5/QtGui -isystem /usr/include/x86_64-linux-gnu/qt5/QtWidgets  -O3 -g    -Wall -Wno-int-in-bool-context  -fPIC -std=gnu++11 -o CMakeFiles/quadruped_control.dir/src/xml_util/xml_helpers.cpp.o -c /home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/src/xml_util/xml_helpers.cpp",
+  "file": "/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/src/xml_util/xml_helpers.cpp"
+},
+{
+  "directory": "/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build",
+  "command": "/usr/bin/g++-5  -DQT_CORE_LIB -DQT_GUI_LIB -DQT_WIDGETS_LIB -I/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/quadruped_control_autogen/include -I/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/src -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/src -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/Eigen -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/include -isystem /home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/hebi/include -isystem /usr/include/x86_64-linux-gnu/qt5 -isystem /usr/include/x86_64-linux-gnu/qt5/QtCore -isystem /usr/lib/x86_64-linux-gnu/qt5/mkspecs/linux-g++-64 -isystem /usr/include/x86_64-linux-gnu/qt5/QtGui -isystem /usr/include/x86_64-linux-gnu/qt5/QtWidgets  -O3 -g    -Wall -Wno-int-in-bool-context  -fPIC -std=gnu++11 -o CMakeFiles/quadruped_control.dir/quadruped_control_autogen/mocs_compilation.cpp.o -c /home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/quadruped_control_autogen/mocs_compilation.cpp",
+  "file": "/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/quadruped_control_autogen/mocs_compilation.cpp"
+},
+{
+  "directory": "/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build",
+  "command": "/usr/bin/g++-5   -I/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/quadruped_core_autogen/include -I/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/src -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/src -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/hebi/include -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/Eigen  -O3 -g   -std=gnu++11 -o CMakeFiles/quadruped_core.dir/src/robot/quadruped_parameters.cpp.o -c /home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/src/robot/quadruped_parameters.cpp",
+  "file": "/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/src/robot/quadruped_parameters.cpp"
+},
+{
+  "directory": "/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build",
+  "command": "/usr/bin/g++-5   -I/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/quadruped_core_autogen/include -I/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/src -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/src -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/hebi/include -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/Eigen  -O3 -g   -std=gnu++11 -o CMakeFiles/quadruped_core.dir/quadruped_core_autogen/mocs_compilation.cpp.o -c /home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/quadruped_core_autogen/mocs_compilation.cpp",
+  "file": "/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/quadruped_core_autogen/mocs_compilation.cpp"
+},
+{
+  "directory": "/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/hebi-cpp-debug",
+  "command": "/usr/bin/g++-5  -Dhebic___EXPORTS -I/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/hebi-cpp-debug/hebic++_autogen/include -isystem /home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/hebi/include  -O3 -g -fPIC   -std=gnu++11 -o CMakeFiles/hebic++.dir/hebic++_autogen/mocs_compilation.cpp.o -c /home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/hebi-cpp-debug/hebic++_autogen/mocs_compilation.cpp",
+  "file": "/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/hebi-cpp-debug/hebic++_autogen/mocs_compilation.cpp"
+},
+{
+  "directory": "/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/hebi-cpp-debug",
+  "command": "/usr/bin/g++-5   -I/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/hebi-cpp-debug/_hebic++-obj_autogen/include -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/src -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/include -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/Eigen -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/hebi/include  -O3 -g -fPIC   -std=gnu++11 -o CMakeFiles/_hebic++-obj.dir/src/mac_address.cpp.o -c /home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/src/mac_address.cpp",
+  "file": "/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/src/mac_address.cpp"
+},
+{
+  "directory": "/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/hebi-cpp-debug",
+  "command": "/usr/bin/g++-5   -I/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/hebi-cpp-debug/_hebic++-obj_autogen/include -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/src -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/include -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/Eigen -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/hebi/include  -O3 -g -fPIC   -std=gnu++11 -o CMakeFiles/_hebic++-obj.dir/src/command.cpp.o -c /home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/src/command.cpp",
+  "file": "/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/src/command.cpp"
+},
+{
+  "directory": "/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/hebi-cpp-debug",
+  "command": "/usr/bin/g++-5   -I/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/hebi-cpp-debug/_hebic++-obj_autogen/include -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/src -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/include -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/Eigen -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/hebi/include  -O3 -g -fPIC   -std=gnu++11 -o CMakeFiles/_hebic++-obj.dir/src/feedback.cpp.o -c /home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/src/feedback.cpp",
+  "file": "/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/src/feedback.cpp"
+},
+{
+  "directory": "/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/hebi-cpp-debug",
+  "command": "/usr/bin/g++-5   -I/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/hebi-cpp-debug/_hebic++-obj_autogen/include -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/src -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/include -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/Eigen -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/hebi/include  -O3 -g -fPIC   -std=gnu++11 -o CMakeFiles/_hebic++-obj.dir/src/info.cpp.o -c /home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/src/info.cpp",
+  "file": "/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/src/info.cpp"
+},
+{
+  "directory": "/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/hebi-cpp-debug",
+  "command": "/usr/bin/g++-5   -I/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/hebi-cpp-debug/_hebic++-obj_autogen/include -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/src -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/include -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/Eigen -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/hebi/include  -O3 -g -fPIC   -std=gnu++11 -o CMakeFiles/_hebic++-obj.dir/src/group_command.cpp.o -c /home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/src/group_command.cpp",
+  "file": "/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/src/group_command.cpp"
+},
+{
+  "directory": "/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/hebi-cpp-debug",
+  "command": "/usr/bin/g++-5   -I/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/hebi-cpp-debug/_hebic++-obj_autogen/include -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/src -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/include -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/Eigen -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/hebi/include  -O3 -g -fPIC   -std=gnu++11 -o CMakeFiles/_hebic++-obj.dir/src/group_feedback.cpp.o -c /home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/src/group_feedback.cpp",
+  "file": "/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/src/group_feedback.cpp"
+},
+{
+  "directory": "/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/hebi-cpp-debug",
+  "command": "/usr/bin/g++-5   -I/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/hebi-cpp-debug/_hebic++-obj_autogen/include -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/src -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/include -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/Eigen -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/hebi/include  -O3 -g -fPIC   -std=gnu++11 -o CMakeFiles/_hebic++-obj.dir/src/group_info.cpp.o -c /home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/src/group_info.cpp",
+  "file": "/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/src/group_info.cpp"
+},
+{
+  "directory": "/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/hebi-cpp-debug",
+  "command": "/usr/bin/g++-5   -I/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/hebi-cpp-debug/_hebic++-obj_autogen/include -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/src -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/include -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/Eigen -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/hebi/include  -O3 -g -fPIC   -std=gnu++11 -o CMakeFiles/_hebic++-obj.dir/src/group.cpp.o -c /home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/src/group.cpp",
+  "file": "/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/src/group.cpp"
+},
+{
+  "directory": "/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/hebi-cpp-debug",
+  "command": "/usr/bin/g++-5   -I/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/hebi-cpp-debug/_hebic++-obj_autogen/include -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/src -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/include -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/Eigen -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/hebi/include  -O3 -g -fPIC   -std=gnu++11 -o CMakeFiles/_hebic++-obj.dir/src/log_file.cpp.o -c /home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/src/log_file.cpp",
+  "file": "/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/src/log_file.cpp"
+},
+{
+  "directory": "/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/hebi-cpp-debug",
+  "command": "/usr/bin/g++-5   -I/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/hebi-cpp-debug/_hebic++-obj_autogen/include -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/src -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/include -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/Eigen -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/hebi/include  -O3 -g -fPIC   -std=gnu++11 -o CMakeFiles/_hebic++-obj.dir/src/lookup.cpp.o -c /home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/src/lookup.cpp",
+  "file": "/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/src/lookup.cpp"
+},
+{
+  "directory": "/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/hebi-cpp-debug",
+  "command": "/usr/bin/g++-5   -I/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/hebi-cpp-debug/_hebic++-obj_autogen/include -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/src -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/include -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/Eigen -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/hebi/include  -O3 -g -fPIC   -std=gnu++11 -o CMakeFiles/_hebic++-obj.dir/src/trajectory.cpp.o -c /home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/src/trajectory.cpp",
+  "file": "/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/src/trajectory.cpp"
+},
+{
+  "directory": "/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/hebi-cpp-debug",
+  "command": "/usr/bin/g++-5   -I/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/hebi-cpp-debug/_hebic++-obj_autogen/include -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/src -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/include -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/Eigen -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/hebi/include  -O3 -g -fPIC   -std=gnu++11 -o CMakeFiles/_hebic++-obj.dir/src/robot_model.cpp.o -c /home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/src/robot_model.cpp",
+  "file": "/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/src/robot_model.cpp"
+},
+{
+  "directory": "/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/hebi-cpp-debug",
+  "command": "/usr/bin/g++-5   -I/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/hebi-cpp-debug/_hebic++-obj_autogen/include -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/src -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/include -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/Eigen -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/hebi/include  -O3 -g -fPIC   -std=gnu++11 -o CMakeFiles/_hebic++-obj.dir/src/version.cpp.o -c /home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/src/version.cpp",
+  "file": "/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/src/version.cpp"
+},
+{
+  "directory": "/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/hebi-cpp-debug",
+  "command": "/usr/bin/g++-5   -I/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/hebi-cpp-debug/_hebic++-obj_autogen/include -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/src -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/include -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/Eigen -I/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/hebi/include  -O3 -g -fPIC   -std=gnu++11 -o CMakeFiles/_hebic++-obj.dir/_hebic++-obj_autogen/mocs_compilation.cpp.o -c /home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/hebi-cpp-debug/_hebic++-obj_autogen/mocs_compilation.cpp",
+  "file": "/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/hebi-cpp-debug/_hebic++-obj_autogen/mocs_compilation.cpp"
+},
+{
+  "directory": "/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/hebi-cpp-debug",
+  "command": "/usr/bin/g++-5   -I/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/hebi-cpp-debug/hebic++-static_autogen/include -isystem /home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/hebi/include  -O3 -g -fPIC   -std=gnu++11 -o CMakeFiles/hebic++-static.dir/hebic++-static_autogen/mocs_compilation.cpp.o -c /home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/hebi-cpp-debug/hebic++-static_autogen/mocs_compilation.cpp",
+  "file": "/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/hebi-cpp-debug/hebic++-static_autogen/mocs_compilation.cpp"
+}
+]
