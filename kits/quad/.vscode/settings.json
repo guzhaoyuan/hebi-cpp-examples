@@ -40,7 +40,8 @@
         "tuple": "cpp",
         "typeindex": "cpp",
         "typeinfo": "cpp",
-        "utility": "cpp"
+        "utility": "cpp",
+        "cstdarg": "cpp"
     },
     "C_Cpp.default.configurationProvider": "vector-of-bool.cmake-tools"
 }

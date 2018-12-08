@@ -144,7 +144,7 @@ quadruped_control: CMakeFiles/quadruped_core.dir/src/robot/quadruped_parameters.
 quadruped_control: CMakeFiles/quadruped_core.dir/quadruped_core_autogen/mocs_compilation.cpp.o
 quadruped_control: CMakeFiles/quadruped_control.dir/build.make
 quadruped_control: /usr/lib/x86_64-linux-gnu/libQt5Widgets.so.5.5.1
-quadruped_control: hebi-cpp-debug/libhebic++.so.2.0.1
+quadruped_control: hebi-cpp-release/libhebic++.so.2.0.1
 quadruped_control: /usr/lib/x86_64-linux-gnu/libQt5Gui.so.5.5.1
 quadruped_control: /usr/lib/x86_64-linux-gnu/libQt5Core.so.5.5.1
 quadruped_control: /home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/hebi/lib/linux_x86_64/libhebi.so

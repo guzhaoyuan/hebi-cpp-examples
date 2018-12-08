@@ -16,6 +16,7 @@ set(CMAKE_CXX_COMPILER_ID "GNU")
 set(CMAKE_TARGET_DEFINITIONS_CXX
   "QT_CORE_LIB"
   "QT_GUI_LIB"
+  "QT_NO_DEBUG"
   "QT_WIDGETS_LIB"
   )
 
@@ -36,7 +37,7 @@ set(CMAKE_CXX_TARGET_INCLUDE_PATH
 
 # Targets to which this target links.
 set(CMAKE_TARGET_LINKED_INFO_FILES
-  "/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/hebi-cpp-debug/CMakeFiles/hebic++.dir/DependInfo.cmake"
+  "/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/hebi-cpp-release/CMakeFiles/hebic++.dir/DependInfo.cmake"
   )
 
 # Fortran module output directory.

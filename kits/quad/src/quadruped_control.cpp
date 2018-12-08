@@ -13,6 +13,15 @@
 using namespace hebi;
 using namespace Eigen;
 
+/* state machine related needed variables */
+// state definitions
+enum ctrl_state_type {
+  CTRL_START_UP,
+  CTRL_NORMAL,
+  CTRL_STATES_COUNT
+};
+// state transition variables
+double startup_seconds = 4.5;
 
 int main(int argc, char** argv)
 {
@@ -61,6 +70,7 @@ int main(int argc, char** argv)
   std::thread control_thread([&]()
   {
     // the main control thread
+    ctrl_state_type cur_ctrl_state = CTRL_START_UP;
     auto prev_time = std::chrono::steady_clock::now();
     // Get dt (in seconds)
     std::chrono::duration<double> dt = std::chrono::seconds(0);
@@ -87,6 +97,27 @@ int main(int argc, char** argv)
       translation_velocity_cmd = input->getTranslationVelocityCmd();
       rotation_velocity_cmd = input->getRotationVelocityCmd();
 
+      // control state machine (do not put actual execution logic here)
+      std::cout << "|Time: " << elapsed_time.count() <<  "| my current state is: " << cur_ctrl_state <<std::endl;
+      switch (cur_ctrl_state)
+      {
+        case CTRL_START_UP:
+          // start up logic 
+
+          if (elapsed_time.count() >= startup_seconds)
+          {
+            cur_ctrl_state = CTRL_NORMAL;
+          }
+          continue;
+
+        case CTRL_NORMAL:
+          // normal state logic 
+          continue;
+
+        default:
+          continue;
+
+      }
       
     }
   });

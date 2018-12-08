@@ -6,8 +6,8 @@ projects/**/*.user
 
 hebi/
 hebi-cpp/
-build/
-kits/daisy/build
-kits/quad/build
+**/build/
+
+
 
 .vscode/

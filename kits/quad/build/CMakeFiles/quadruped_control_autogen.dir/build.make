@@ -55,7 +55,7 @@ include CMakeFiles/quadruped_control_autogen.dir/progress.make
 
 CMakeFiles/quadruped_control_autogen:
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Automatic MOC for target quadruped_control"
-	/usr/local/bin/cmake -E cmake_autogen /home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/CMakeFiles/quadruped_control_autogen.dir/AutogenInfo.cmake Debug
+	/usr/local/bin/cmake -E cmake_autogen /home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/CMakeFiles/quadruped_control_autogen.dir/AutogenInfo.cmake Release
 
 quadruped_control_autogen: CMakeFiles/quadruped_control_autogen
 quadruped_control_autogen: CMakeFiles/quadruped_control_autogen.dir/build.make

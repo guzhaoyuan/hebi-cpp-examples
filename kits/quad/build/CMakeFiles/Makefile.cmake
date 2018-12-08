@@ -57,8 +57,8 @@ set(CMAKE_MAKEFILE_OUTPUTS
 # Byproducts of CMake generate step:
 set(CMAKE_MAKEFILE_PRODUCTS
   "CMakeFiles/CMakeDirectoryInformation.cmake"
-  "hebi-cpp-debug/CMakeFiles/CMakeDirectoryInformation.cmake"
-  "hebi-cpp-debug/hebi-c-build-dir/CMakeFiles/CMakeDirectoryInformation.cmake"
+  "hebi-cpp-release/CMakeFiles/CMakeDirectoryInformation.cmake"
+  "hebi-cpp-release/hebi-c-build-dir/CMakeFiles/CMakeDirectoryInformation.cmake"
   )
 
 # Dependency information for all targets:
@@ -67,10 +67,10 @@ set(CMAKE_DEPEND_INFO_FILES
   "CMakeFiles/quadruped_core.dir/DependInfo.cmake"
   "CMakeFiles/quadruped_control_autogen.dir/DependInfo.cmake"
   "CMakeFiles/quadruped_core_autogen.dir/DependInfo.cmake"
-  "hebi-cpp-debug/CMakeFiles/hebic++.dir/DependInfo.cmake"
-  "hebi-cpp-debug/CMakeFiles/_hebic++-obj.dir/DependInfo.cmake"
-  "hebi-cpp-debug/CMakeFiles/hebic++-static.dir/DependInfo.cmake"
-  "hebi-cpp-debug/CMakeFiles/hebic++_autogen.dir/DependInfo.cmake"
-  "hebi-cpp-debug/CMakeFiles/_hebic++-obj_autogen.dir/DependInfo.cmake"
-  "hebi-cpp-debug/CMakeFiles/hebic++-static_autogen.dir/DependInfo.cmake"
+  "hebi-cpp-release/CMakeFiles/hebic++.dir/DependInfo.cmake"
+  "hebi-cpp-release/CMakeFiles/_hebic++-obj.dir/DependInfo.cmake"
+  "hebi-cpp-release/CMakeFiles/hebic++-static.dir/DependInfo.cmake"
+  "hebi-cpp-release/CMakeFiles/hebic++_autogen.dir/DependInfo.cmake"
+  "hebi-cpp-release/CMakeFiles/_hebic++-obj_autogen.dir/DependInfo.cmake"
+  "hebi-cpp-release/CMakeFiles/hebic++-static_autogen.dir/DependInfo.cmake"
   )

@@ -172,7 +172,7 @@ hebic++: cmake_check_build_system
 
 # fast build rule for target.
 hebic++/fast:
-	$(MAKE) -f hebi-cpp-debug/CMakeFiles/hebic++.dir/build.make hebi-cpp-debug/CMakeFiles/hebic++.dir/build
+	$(MAKE) -f hebi-cpp-release/CMakeFiles/hebic++.dir/build.make hebi-cpp-release/CMakeFiles/hebic++.dir/build
 .PHONY : hebic++/fast
 
 #=============================================================================
@@ -185,7 +185,7 @@ _hebic++-obj: cmake_check_build_system
 
 # fast build rule for target.
 _hebic++-obj/fast:
-	$(MAKE) -f hebi-cpp-debug/CMakeFiles/_hebic++-obj.dir/build.make hebi-cpp-debug/CMakeFiles/_hebic++-obj.dir/build
+	$(MAKE) -f hebi-cpp-release/CMakeFiles/_hebic++-obj.dir/build.make hebi-cpp-release/CMakeFiles/_hebic++-obj.dir/build
 .PHONY : _hebic++-obj/fast
 
 #=============================================================================
@@ -198,7 +198,7 @@ hebic++-static: cmake_check_build_system
 
 # fast build rule for target.
 hebic++-static/fast:
-	$(MAKE) -f hebi-cpp-debug/CMakeFiles/hebic++-static.dir/build.make hebi-cpp-debug/CMakeFiles/hebic++-static.dir/build
+	$(MAKE) -f hebi-cpp-release/CMakeFiles/hebic++-static.dir/build.make hebi-cpp-release/CMakeFiles/hebic++-static.dir/build
 .PHONY : hebic++-static/fast
 
 #=============================================================================
@@ -211,7 +211,7 @@ hebic++_autogen: cmake_check_build_system
 
 # fast build rule for target.
 hebic++_autogen/fast:
-	$(MAKE) -f hebi-cpp-debug/CMakeFiles/hebic++_autogen.dir/build.make hebi-cpp-debug/CMakeFiles/hebic++_autogen.dir/build
+	$(MAKE) -f hebi-cpp-release/CMakeFiles/hebic++_autogen.dir/build.make hebi-cpp-release/CMakeFiles/hebic++_autogen.dir/build
 .PHONY : hebic++_autogen/fast
 
 #=============================================================================
@@ -224,7 +224,7 @@ _hebic++-obj_autogen: cmake_check_build_system
 
 # fast build rule for target.
 _hebic++-obj_autogen/fast:
-	$(MAKE) -f hebi-cpp-debug/CMakeFiles/_hebic++-obj_autogen.dir/build.make hebi-cpp-debug/CMakeFiles/_hebic++-obj_autogen.dir/build
+	$(MAKE) -f hebi-cpp-release/CMakeFiles/_hebic++-obj_autogen.dir/build.make hebi-cpp-release/CMakeFiles/_hebic++-obj_autogen.dir/build
 .PHONY : _hebic++-obj_autogen/fast
 
 #=============================================================================
@@ -237,7 +237,7 @@ hebic++-static_autogen: cmake_check_build_system
 
 # fast build rule for target.
 hebic++-static_autogen/fast:
-	$(MAKE) -f hebi-cpp-debug/CMakeFiles/hebic++-static_autogen.dir/build.make hebi-cpp-debug/CMakeFiles/hebic++-static_autogen.dir/build
+	$(MAKE) -f hebi-cpp-release/CMakeFiles/hebic++-static_autogen.dir/build.make hebi-cpp-release/CMakeFiles/hebic++-static_autogen.dir/build
 .PHONY : hebic++-static_autogen/fast
 
 quadruped_control_autogen/mocs_compilation.o: quadruped_control_autogen/mocs_compilation.cpp.o

@@ -19,7 +19,7 @@ set(AM_QT_MOC_EXECUTABLE "/usr/lib/x86_64-linux-gnu/qt5/bin/moc")
 set(AM_QT_UIC_EXECUTABLE "")
 # MOC settings
 set(AM_MOC_SKIP "/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/quadruped_control_autogen/mocs_compilation.cpp")
-set(AM_MOC_DEFINITIONS "QT_CORE_LIB;QT_GUI_LIB;QT_WIDGETS_LIB")
+set(AM_MOC_DEFINITIONS "QT_CORE_LIB;QT_GUI_LIB;QT_NO_DEBUG;QT_WIDGETS_LIB")
 set(AM_MOC_INCLUDES "/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/quadruped_control_autogen/include;/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/src;/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/src;/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/Eigen;/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/include;/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/hebi/include;/usr/include/x86_64-linux-gnu/qt5;/usr/include/x86_64-linux-gnu/qt5/QtCore;/usr/lib/x86_64-linux-gnu/qt5/mkspecs/linux-g++-64;/usr/include/x86_64-linux-gnu/qt5/QtGui;/usr/include/x86_64-linux-gnu/qt5/QtWidgets;/usr/include")
 set(AM_MOC_OPTIONS "")
 set(AM_MOC_RELAXED_MODE "")

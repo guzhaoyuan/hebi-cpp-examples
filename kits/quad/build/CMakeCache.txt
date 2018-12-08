@@ -18,7 +18,7 @@
 CMAKE_AR:FILEPATH=/usr/bin/ar
 
 //No help, variable specified on the command line.
-CMAKE_BUILD_TYPE:STRING=Debug
+CMAKE_BUILD_TYPE:STRING=Release
 
 //Enable/Disable color output during build.
 CMAKE_COLOR_MAKEFILE:BOOL=ON
@@ -224,7 +224,7 @@ Qt5Widgets_DIR:PATH=/usr/lib/x86_64-linux-gnu/cmake/Qt5Widgets
 Qt5_DIR:PATH=/usr/lib/x86_64-linux-gnu/cmake/Qt5
 
 //Value Computed by CMake
-hebi_cpp_api_BINARY_DIR:STATIC=/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/hebi-cpp-debug
+hebi_cpp_api_BINARY_DIR:STATIC=/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/hebi-cpp-release
 
 //Value Computed by CMake
 hebi_cpp_api_SOURCE_DIR:STATIC=/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp
@@ -236,7 +236,7 @@ hebic++-static_LIB_DEPENDS:STATIC=general;hebi;
 hebic++_LIB_DEPENDS:STATIC=general;hebi;
 
 //Value Computed by CMake
-libhebi_BINARY_DIR:STATIC=/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/hebi-cpp-debug/hebi-c-build-dir
+libhebi_BINARY_DIR:STATIC=/home/biorobotics/sy_ws/hebi-cpp-examples/kits/quad/build/hebi-cpp-release/hebi-c-build-dir
 
 //Value Computed by CMake
 libhebi_SOURCE_DIR:STATIC=/home/biorobotics/sy_ws/hebi-cpp-examples/hebi-cpp/hebi
