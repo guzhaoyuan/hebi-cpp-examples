@@ -8,6 +8,7 @@ hebi/
 hebi-cpp/
 **/build/
 
-
+kits/quad/build
+kits/daisy/build
 
 .vscode/
