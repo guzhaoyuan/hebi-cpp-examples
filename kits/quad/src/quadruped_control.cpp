@@ -76,7 +76,6 @@ int main(int argc, char** argv)
       dt = std::chrono::duration_cast<std::chrono::duration<double>>(now_time - prev_time);
       prev_time = now_time;
 
-      // In seconds:
       std::chrono::duration<double> elapsed_time(now_time - start_time);
 
       // Get joystick update, and update any relevant variables.
@@ -85,10 +84,10 @@ int main(int argc, char** argv)
       {
         app.exit();
       }
-        
-
       translation_velocity_cmd = input->getTranslationVelocityCmd();
       rotation_velocity_cmd = input->getRotationVelocityCmd();
+
+      
     }
   });
 

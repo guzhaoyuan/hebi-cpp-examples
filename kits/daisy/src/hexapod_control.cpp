@@ -417,6 +417,7 @@ int main(int argc, char** argv)
     dt = std::chrono::duration_cast<std::chrono::duration<double>>(now - prev);
     prev = now;
 
+    // show connection status
     if (!is_dummy)
     {
       // More than 2x the feedback period?
@@ -456,7 +457,7 @@ int main(int argc, char** argv)
     rotation_velocity_cmd = input->getRotationVelocityCmd();
     hexapod->updateMode(input->getAndResetModeToggleCount());
 
-    // The first minute of every 30 minutes:
+    // The first minute of every 30 minutes: record log?
     if (fmod(elapsed.count(), 1800) < 60)
     {
       if (!high_freq_logging)
@@ -481,6 +482,7 @@ int main(int argc, char** argv)
     {
       int num_joints = Leg::getNumJoints();
       // TODO: move all logic inside leg?
+      // in first run, initalize start up sequence
       if (first_run)
       {
         // V l in legs, let s_l = start joints and e_l = end joints and t_l =
