@@ -9,6 +9,7 @@
 
 #include "input/input_manager_mobile_io.hpp"
 #include "robot/quadruped_parameters.hpp"
+#include "robot/quadruped.hpp"
 
 using namespace hebi;
 using namespace Eigen;
@@ -16,8 +17,9 @@ using namespace Eigen;
 /* state machine related needed variables */
 // state definitions
 enum ctrl_state_type {
-  CTRL_START_UP,
-  CTRL_NORMAL,
+  HEXA_CTRL_STAND_UP_PLAN,
+  HEXA_CTRL_STAND_UP,
+  QUAD_CTRL_NORMAL,
   CTRL_STATES_COUNT
 };
 // state transition variables
@@ -49,6 +51,8 @@ int main(int argc, char** argv)
   }
 
   std::cout << "Found input joystick -- starting control program.\n";
+  // INIT STEP 3: init robot planner
+  std::unique_ptr<Quadruped> quadruped = Quadruped::create(params);
 
   // INIT STEP FINAL: start control state machine
   // input command from joystick (hebi's input manager use vector3f, i think use vector3d would be better)
@@ -70,12 +74,14 @@ int main(int argc, char** argv)
   std::thread control_thread([&]()
   {
     // the main control thread
-    ctrl_state_type cur_ctrl_state = CTRL_START_UP;
+    ctrl_state_type cur_ctrl_state = HEXA_CTRL_STAND_UP_PLAN;
     auto prev_time = std::chrono::steady_clock::now();
     // Get dt (in seconds)
     std::chrono::duration<double> dt = std::chrono::seconds(0);
     while (control_execute.load(std::memory_order_acquire))
     {    
+      // variables init
+      Eigen::Vector3d grav_vec;
       // Wait!
       auto now_time = std::chrono::steady_clock::now();
       auto need_to_wait = std::max(0, (int)std::chrono::duration_cast<std::chrono::milliseconds>(prev_time + std::chrono::milliseconds(interval_ms) - now_time).count());
@@ -101,19 +107,31 @@ int main(int argc, char** argv)
       std::cout << "|Time: " << elapsed_time.count() <<  "| my current state is: " << cur_ctrl_state <<std::endl;
       switch (cur_ctrl_state)
       {
-        case CTRL_START_UP:
+  
+        case HEXA_CTRL_STAND_UP_PLAN:
+          // plan a stand up trajectory
+
+          cur_ctrl_state = HEXA_CTRL_STAND_UP;
+          continue;
+        case HEXA_CTRL_STAND_UP:
           // start up logic 
 
           if (elapsed_time.count() >= startup_seconds)
           {
-            cur_ctrl_state = CTRL_NORMAL;
+            cur_ctrl_state = QUAD_CTRL_NORMAL;
           }
           continue;
 
-        case CTRL_NORMAL:
+        case QUAD_CTRL_NORMAL:
           // normal state logic 
+          grav_vec = quadruped ->getGravityDirection();
+          std::cout << "Gravity Direction: " << grav_vec(0) << " "
+                                             << grav_vec(1) << " "
+                                             << grav_vec(2) << std::endl;
+          
           continue;
 
+        case CTRL_STATES_COUNT:
         default:
           continue;
 

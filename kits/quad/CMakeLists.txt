@@ -41,6 +41,8 @@ link_directories (
 # start the different part from Hebi hexapod
 add_library(quadruped_core OBJECT
   ${CMAKE_CURRENT_SOURCE_DIR}/src/robot/quadruped_parameters.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/robot/quadruped.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/robot/quadruped_leg.cpp
 )
 
 SET(SOURCES
