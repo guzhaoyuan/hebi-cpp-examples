@@ -60,10 +60,7 @@ int main(int argc, char** argv)
   translation_velocity_cmd.setZero();
   Eigen::Vector3f rotation_velocity_cmd;
   rotation_velocity_cmd.setZero();   
-  // Controls to send to the robot
-  // Eigen::VectorXd angles(Leg::getNumJoints());
-  // Eigen::VectorXd vels(Leg::getNumJoints());
-  // Eigen::VectorXd torques(Leg::getNumJoints()); 
+
 
   // START CONTROL THREAD: this is so cool
   auto start_time = std::chrono::steady_clock::now();
@@ -92,6 +89,10 @@ int main(int argc, char** argv)
       now_time = std::chrono::steady_clock::now();
       dt = std::chrono::duration_cast<std::chrono::duration<double>>(now_time - prev_time);
       prev_time = now_time;
+      // some time for state use
+      auto state_enter_time = std::chrono::steady_clock::now(); 
+      auto state_curr_time = std::chrono::steady_clock::now(); 
+      std::chrono::duration<double> state_run_time = std::chrono::seconds(0);
 
       std::chrono::duration<double> elapsed_time(now_time - start_time);
 
@@ -111,11 +112,17 @@ int main(int argc, char** argv)
   
         case HEXA_CTRL_STAND_UP_PLAN:
           // plan a stand up trajectory
-
+          quadruped -> planStandUpTraj(startup_seconds);
+          // state transition
           cur_ctrl_state = HEXA_CTRL_STAND_UP;
+          // state_enter_time = std::chrono::steady_clock::now(); 
           continue;
         case HEXA_CTRL_STAND_UP:
           // start up logic 
+          // state_curr_time = std::chrono::steady_clock::now();
+          // state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time - dt);
+
+          quadruped -> execStandUpTraj(elapsed_time.count());
 
           if (elapsed_time.count() >= startup_seconds)
           {
@@ -126,14 +133,14 @@ int main(int argc, char** argv)
         case QUAD_CTRL_NORMAL:
           // normal state logic 
           // some debug print to show so far all implementation is correct
-          grav_vec = quadruped -> getGravityDirection();
-          std::cout << "Gravity Direction: " << grav_vec(0) << " "
-                                             << grav_vec(1) << " "
-                                             << grav_vec(2) << std::endl;
-          leg_angles = quadruped -> getLegJointAngles(1);
-          std::cout << "Leg angle: " << leg_angles(0) << " "
-                                     << leg_angles(1) << " "
-                                     << leg_angles(2) << std::endl;
+          // grav_vec = quadruped -> getGravityDirection();
+          // std::cout << "Gravity Direction: " << grav_vec(0) << " "
+          //                                    << grav_vec(1) << " "
+          //                                    << grav_vec(2) << std::endl;
+          // leg_angles = quadruped -> getLegJointAngles(1);
+          // std::cout << "Leg angle: " << leg_angles(0) << " "
+          //                            << leg_angles(1) << " "
+          //                            << leg_angles(2) << std::endl;
           
           continue;
 

@@ -3,12 +3,6 @@
 #include <ctime>
 #include <fstream>
 
-#include "lookup.hpp"
-#include "group.hpp"
-#include "group_command.hpp"
-#include "group_feedback.hpp"
-#include "group_info.hpp"
-
 #include "quadruped.hpp"
 
 namespace hebi {
@@ -134,6 +128,106 @@ namespace hebi {
   Eigen::VectorXd Quadruped::getLegJointAngles(int index)
   {
     return legs_[index]->getJointAngle();
+  }
+
+  bool Quadruped::planStandUpTraj(double duration_time)
+  {
+    // this is a hexapod movement ...
+    for (int i = 0; i < num_legs_; ++i)
+    {
+      Eigen::VectorXd leg_start = getLegJointAngles(i);
+      Eigen::VectorXd leg_end;
+      
+
+      auto base_frame = legs_[i] -> getBaseFrame();
+      Eigen::Vector4d tmp4(0.55, 0, -0.21, 0); // hard code first
+      Eigen::VectorXd home_stance_xyz = (base_frame * tmp4).topLeftCorner<3,1>();
+      legs_[i]->computeIK(leg_end, home_stance_xyz);
+      // TODO: fix! (quick and dirty -- leg mid is hardcoded as offset from leg end)
+      Eigen::VectorXd leg_mid = leg_end;
+      leg_mid(1) -= 0.3;
+      leg_mid(2) -= 0.15;
+
+      // Convert for trajectories
+      int num_waypoints = 5;
+      Eigen::MatrixXd positions(num_joints_per_leg_, num_waypoints);
+      Eigen::MatrixXd velocities = Eigen::MatrixXd::Zero(num_joints_per_leg_, num_waypoints);
+      Eigen::MatrixXd accelerations = Eigen::MatrixXd::Zero(num_joints_per_leg_, num_waypoints);
+      Eigen::VectorXd nan_column = Eigen::VectorXd::Constant(num_joints_per_leg_, std::numeric_limits<double>::quiet_NaN());
+      // Is this one of the legs that takes a step first?
+      bool step_first = (i == 0 || i == 3 || i == 4);
+
+      // Set positions
+      positions.col(0) = leg_start;
+      positions.col(1) = step_first ? leg_mid : leg_start;
+      positions.col(2) = step_first ? leg_end : leg_start;
+      positions.col(3) = step_first ? leg_end : leg_mid;
+      positions.col(4) = leg_end;
+
+      velocities.col(1) = nan_column;
+      velocities.col(3) = nan_column;
+      accelerations.col(1) = nan_column;
+      accelerations.col(3) = nan_column;
+
+      Eigen::VectorXd times(num_waypoints);
+      times << 0,
+              0 + duration_time * 0.25,
+              0 + duration_time * 0.5,
+              0 + duration_time * 0.75,
+              0 + duration_time;
+      startup_trajectories.push_back(trajectory::Trajectory::createUnconstrainedQp(
+        times, positions, &velocities, &accelerations));
+    }
+  }
+
+  bool Quadruped::execStandUpTraj(double curr_time)
+  {
+    // Controls to send to the robot
+    Eigen::VectorXd angles(num_joints_per_leg_);
+    Eigen::VectorXd vels(num_joints_per_leg_);
+    Eigen::VectorXd torques(num_joints_per_leg_); 
+    for (int i = 0; i < num_legs_; ++i)
+    {
+      Eigen::VectorXd a(num_joints_per_leg_); // do not use acceleration
+      startup_trajectories[i]->getState(curr_time, &angles, &vels, &a);
+
+      Eigen::Vector3d gravity_vec = getGravityDirection() * 9.8f;
+      Eigen::Vector3d foot_force = -weight_ * getGravityDirection() / 6.0f;
+      torques = legs_[i]-> computeCompensateTorques(angles, vels, gravity_vec, foot_force); 
+
+      setCommand(i, &angles, &vels, &torques);
+    }
+    sendCommand();
+  }
+
+  void Quadruped::setCommand(int index, const VectorXd* angles, const VectorXd* vels, const VectorXd* torques)
+  {
+    int leg_offset = index * num_joints_per_leg_;
+    // I think do not need to check the size of the code
+    if (angles != nullptr)
+    {
+      assert(angles->size() == num_joints_per_leg_);
+      for (int i = 0; i < num_joints_per_leg_; ++i)
+        cmd_[leg_offset + i].actuator().position().set((*angles)[i]);
+    }
+    if (vels != nullptr)
+    {
+      assert(vels->size() == num_joints_per_leg_);
+      for (int i = 0; i < num_joints_per_leg_; ++i)
+        cmd_[leg_offset + i].actuator().velocity().set((*vels)[i]);
+    }
+    if (torques != nullptr)
+    {
+      assert(torques->size() == num_joints_per_leg_);
+      for (int i = 0; i < num_joints_per_leg_; ++i)
+        cmd_[leg_offset + i].actuator().effort().set((*torques)[i]);
+    }
+  }
+
+  void Quadruped::sendCommand()
+  {
+    if (group_)
+      group_->sendCommand(cmd_);
   }
 
 } // namespace hebi

@@ -6,8 +6,12 @@
 
 #include <Eigen/Dense>
 
+#include "lookup.hpp"
 #include "group.hpp"
+#include "trajectory.hpp"
 #include "group_command.hpp"
+#include "group_feedback.hpp"
+#include "group_info.hpp"
 
 #include "quadruped_parameters.hpp"
 #include "quadruped_leg.hpp"
@@ -42,6 +46,11 @@ class Quadruped
 
     Eigen::Vector3d getGravityDirection();
     Eigen::VectorXd getLegJointAngles(int index);
+    bool planStandUpTraj(double duration_time);
+    bool execStandUpTraj(double curr_time);
+
+    void setCommand(int index, const VectorXd* angles, const VectorXd* vels, const VectorXd* torques);
+    void sendCommand();
 
   private:
     // private constructor, it make sense because before construct must make sure group is successfully created
@@ -63,6 +72,9 @@ class Quadruped
     // two locks to get feedback
     std::mutex fbk_lock_;
     std::mutex grav_lock_;
+
+    // planner trajectories
+    std::vector<std::shared_ptr<trajectory::Trajectory>> startup_trajectories;
 
     // control constants
     const float fbk_frq_hz_ = 200.0f;
