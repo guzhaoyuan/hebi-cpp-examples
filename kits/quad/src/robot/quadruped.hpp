@@ -49,6 +49,8 @@ class Quadruped
     bool planStandUpTraj(double duration_time);
     bool execStandUpTraj(double curr_time);
 
+    void computeFootForces(Eigen::MatrixXd& foot_forces);
+
     void setCommand(int index, const VectorXd* angles, const VectorXd* vels, const VectorXd* torques);
     void sendCommand();
 

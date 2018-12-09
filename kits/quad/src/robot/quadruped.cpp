@@ -192,12 +192,62 @@ namespace hebi {
       startup_trajectories[i]->getState(curr_time, &angles, &vels, &a);
 
       Eigen::Vector3d gravity_vec = getGravityDirection() * 9.8f;
-      Eigen::Vector3d foot_force = -weight_ * getGravityDirection() / 6.0f;
+
+      Eigen::MatrixXd foot_forces(3,num_legs_); // 3 (xyz) by num legs
+      computeFootForces(foot_forces);
+      double ramp_up_scale = std::min(1.0, (curr_time + 0.001 / 2.0)); // to prevent segementation fault when curr_time ==0
+      foot_forces *= ramp_up_scale;
+      //foot_forces.setZero();
+      Eigen::Vector3d foot_force = foot_forces.block<3,1>(0,i);
       torques = legs_[i]-> computeCompensateTorques(angles, vels, gravity_vec, foot_force); 
 
       setCommand(i, &angles, &vels, &torques);
     }
     sendCommand();
+  }
+  void Quadruped::computeFootForces(Eigen::MatrixXd& foot_forces)
+  {
+    Eigen::VectorXd factors(6);
+    Eigen::VectorXd blend_factors(6);
+    Eigen::Vector3d grav = -gravity_direction_;
+    // Get the dot product of gravity with each leg, and then subtract a scaled
+    // gravity from the foot stance position.
+    // NOTE: Matt is skeptical about this overall approach; but it worked before so we are keeping
+    // it for now.
+    factors.resize(6); 
+    for (int i = 0; i < 6; ++i)
+    {
+      auto base_frame = legs_[i] -> getBaseFrame();
+      Eigen::Vector4d tmp4(0.55, 0, -0.21, 0); // hard code first
+      Eigen::VectorXd home_stance_xyz = (base_frame * tmp4).topLeftCorner<3,1>();
+      Eigen::Vector3d stance = home_stance_xyz;
+      double dot_prod = grav.dot(stance);
+      factors(i) = (grav * dot_prod - stance).norm();
+    }
+    double fact_sum = factors.sum();
+    for (int i = 0; i < 6; ++i)
+      factors(i) = fact_sum / factors(i);
+    for (int i = 0; i < 6; ++i)
+    {
+      // Redistribute weight to just modules in stance
+      blend_factors(i) = 1;
+      
+    }
+    fact_sum = factors.sum();
+    factors /= fact_sum;
+
+    // NOTE: here, we have a blend factor for each foot to allow for future gaits;
+    // in MATLAB, there was just one scalar for this.  We use "max" here to match
+    // the results from MATLAB.
+    for (int i = 0; i < 6; ++i)
+      factors(i) = factors(i) * (1 + .33 * std::sin(M_PI * blend_factors(i)));
+
+  //  std::cout << "factors: " << factors << std::endl;
+  //  std::cout << "grav: " << grav << std::endl;
+
+    foot_forces.resize(3,6);
+    for (int i = 0; i < 6; ++i)
+      foot_forces.block<3,1>(0,i) = factors(i) * weight_ * grav;
   }
 
   void Quadruped::setCommand(int index, const VectorXd* angles, const VectorXd* vels, const VectorXd* torques)

@@ -407,216 +407,216 @@ int main(int argc, char** argv)
     while (control_execute.load(std::memory_order_acquire))
     {
 
-    // Wait!
-    auto now = std::chrono::steady_clock::now();
-    auto need_to_wait = std::max(0, (int)std::chrono::duration_cast<std::chrono::milliseconds>(prev + std::chrono::milliseconds(interval_ms) - now).count());
-    std::this_thread::sleep_for(std::chrono::milliseconds(need_to_wait));
+      // Wait!
+      auto now = std::chrono::steady_clock::now();
+      auto need_to_wait = std::max(0, (int)std::chrono::duration_cast<std::chrono::milliseconds>(prev + std::chrono::milliseconds(interval_ms) - now).count());
+      std::this_thread::sleep_for(std::chrono::milliseconds(need_to_wait));
 
-    // Get dt (in seconds)
-    now = std::chrono::steady_clock::now();
-    dt = std::chrono::duration_cast<std::chrono::duration<double>>(now - prev);
-    prev = now;
+      // Get dt (in seconds)
+      now = std::chrono::steady_clock::now();
+      dt = std::chrono::duration_cast<std::chrono::duration<double>>(now - prev);
+      prev = now;
 
-    // show connection status
-    if (!is_dummy)
-    {
-      // More than 2x the feedback period?
-      if ((now - hexapod->getLastFeedbackTime()) > std::chrono::milliseconds((long)(hexapod->getFeedbackPeriodMs() * 2.0)))
+      // show connection status
+      if (!is_dummy)
       {
-        if (last_connection_status)
+        // More than 2x the feedback period?
+        if ((now - hexapod->getLastFeedbackTime()) > std::chrono::milliseconds((long)(hexapod->getFeedbackPeriodMs() * 2.0)))
         {
-          feedback_status->setText("Intermittent");
-          QPalette palette = feedback_status->palette();
-          palette.setColor(QPalette::Background, Qt::red);
-          feedback_status->setPalette(palette);
+          if (last_connection_status)
+          {
+            feedback_status->setText("Intermittent");
+            QPalette palette = feedback_status->palette();
+            palette.setColor(QPalette::Background, Qt::red);
+            feedback_status->setPalette(palette);
+          }
+          last_connection_status = false;
         }
-        last_connection_status = false;
+        else
+        {
+          if (!last_connection_status)
+          {
+            feedback_status->setText("Good");
+            QPalette palette = feedback_status->palette();
+            palette.setColor(QPalette::Background, Qt::green);
+            feedback_status->setPalette(palette);
+          }
+          last_connection_status = true;
+        }
+      }
+
+      // In seconds:
+      std::chrono::duration<double> elapsed(now - start);
+
+      // Get joystick update, and update any relevant variables.
+      input->update();
+      if (input->getQuitButtonPushed())
+        app.exit();
+
+      translation_velocity_cmd = input->getTranslationVelocityCmd();
+      rotation_velocity_cmd = input->getRotationVelocityCmd();
+      hexapod->updateMode(input->getAndResetModeToggleCount());
+
+      // The first minute of every 30 minutes: record log?
+      if (fmod(elapsed.count(), 1800) < 60)
+      {
+        if (!high_freq_logging)
+        {
+          high_freq_logging = true;
+          if (hexapod->hasLogGroup())
+            hexapod->setLoggingFrequency(params.high_log_frequency_hz_);
+        }
       }
       else
       {
-        if (!last_connection_status)
+        if (high_freq_logging)
         {
-          feedback_status->setText("Good");
-          QPalette palette = feedback_status->palette();
-          palette.setColor(QPalette::Background, Qt::green);
-          feedback_status->setPalette(palette);
+          high_freq_logging = false;
+          if (hexapod->hasLogGroup())
+            hexapod->setLoggingFrequency(params.low_log_frequency_hz_);
         }
-        last_connection_status = true;
       }
-    }
 
-    // In seconds:
-    std::chrono::duration<double> elapsed(now - start);
-
-    // Get joystick update, and update any relevant variables.
-    input->update();
-    if (input->getQuitButtonPushed())
-      app.exit();
-
-    translation_velocity_cmd = input->getTranslationVelocityCmd();
-    rotation_velocity_cmd = input->getRotationVelocityCmd();
-    hexapod->updateMode(input->getAndResetModeToggleCount());
-
-    // The first minute of every 30 minutes: record log?
-    if (fmod(elapsed.count(), 1800) < 60)
-    {
-      if (!high_freq_logging)
+      // Startup phase: smoothly transition!
+      if (startup)
       {
-        high_freq_logging = true;
-        if (hexapod->hasLogGroup())
-          hexapod->setLoggingFrequency(params.high_log_frequency_hz_);
-      }
-    }
-    else
-    {
-      if (high_freq_logging)
-      {
-        high_freq_logging = false;
-        if (hexapod->hasLogGroup())
-          hexapod->setLoggingFrequency(params.low_log_frequency_hz_);
-      }
-    }
+        int num_joints = Leg::getNumJoints();
+        // TODO: move all logic inside leg?
+        // in first run, initalize start up sequence
+        if (first_run)
+        {
+          // V l in legs, let s_l = start joints and e_l = end joints and t_l =
+          // trajectory, with zero vel/accel endpoints.
+          for (int i = 0; i < 6; ++i)
+          {
+            Eigen::VectorXd leg_start = hexapod->getLegFeedback(i);
+            Eigen::VectorXd leg_end;
+            Eigen::VectorXd leg_vels;
+            Eigen::MatrixXd jacobian_ee(0, 0);
+            robot_model::MatrixXdVector jacobian_com;
+            hexapod->getLeg(i)->computeState(elapsed.count(), leg_end, leg_vels, jacobian_ee, jacobian_com);
+            // TODO: fix! (quick and dirty -- leg mid is hardcoded as offset from leg end)
+            Eigen::VectorXd leg_mid = leg_end;
+            leg_mid(1) -= 0.3;
+            leg_mid(2) -= 0.15;
 
-    // Startup phase: smoothly transition!
-    if (startup)
-    {
-      int num_joints = Leg::getNumJoints();
-      // TODO: move all logic inside leg?
-      // in first run, initalize start up sequence
-      if (first_run)
-      {
-        // V l in legs, let s_l = start joints and e_l = end joints and t_l =
-        // trajectory, with zero vel/accel endpoints.
+            // Convert for trajectories
+            int num_waypoints = 5;
+            Eigen::MatrixXd positions(num_joints, num_waypoints);
+            Eigen::MatrixXd velocities = Eigen::MatrixXd::Zero(num_joints, num_waypoints);
+            Eigen::MatrixXd accelerations = Eigen::MatrixXd::Zero(num_joints, num_waypoints);
+            Eigen::VectorXd nan_column = Eigen::VectorXd::Constant(num_joints, std::numeric_limits<double>::quiet_NaN());
+            // Is this one of the legs that takes a step first?
+            bool step_first = (i == 0 || i == 3 || i == 4);
+
+            // Set positions
+            positions.col(0) = leg_start;
+            positions.col(1) = step_first ? leg_mid : leg_start;
+            positions.col(2) = step_first ? leg_end : leg_start;
+            positions.col(3) = step_first ? leg_end : leg_mid;
+            positions.col(4) = leg_end;
+
+            velocities.col(1) = nan_column;
+            velocities.col(3) = nan_column;
+            accelerations.col(1) = nan_column;
+            accelerations.col(3) = nan_column;
+
+            Eigen::VectorXd times(num_waypoints);
+            double local_start = elapsed.count();
+            double total = startup_seconds - local_start;
+            times << local_start,
+                    local_start + total * 0.25,
+                    local_start + total * 0.5,
+                    local_start + total * 0.75,
+                    local_start + total;
+            startup_trajectories.push_back(trajectory::Trajectory::createUnconstrainedQp(
+              times, positions, &velocities, &accelerations));
+
+          }
+
+          // TODO: move this startup logic outside of t.elapse() call, and then
+          // we don't need 'first_run'?
+          first_run = false;
+        }
+        mode->setText("Startup");
+      
+        // Follow t_l:
         for (int i = 0; i < 6; ++i)
         {
-          Eigen::VectorXd leg_start = hexapod->getLegFeedback(i);
-          Eigen::VectorXd leg_end;
-          Eigen::VectorXd leg_vels;
-          Eigen::MatrixXd jacobian_ee(0, 0);
+          Eigen::VectorXd v(3);
+          Eigen::VectorXd a(3);
+          startup_trajectories[i]->getState(elapsed.count(), &angles, &v, &a);
+          vels = v;
+
+          Eigen::Vector3d foot_force = foot_forces.block<3,1>(0,i);
+          hebi::Leg* curr_leg = hexapod->getLeg(i);
+
+          // Get the Jacobian
+          Eigen::MatrixXd jacobian_ee;
           robot_model::MatrixXdVector jacobian_com;
-          hexapod->getLeg(i)->computeState(elapsed.count(), leg_end, leg_vels, jacobian_ee, jacobian_com);
-          // TODO: fix! (quick and dirty -- leg mid is hardcoded as offset from leg end)
-          Eigen::VectorXd leg_mid = leg_end;
-          leg_mid(1) -= 0.3;
-          leg_mid(2) -= 0.15;
+          curr_leg->computeJacobians(angles, jacobian_ee, jacobian_com);
 
-          // Convert for trajectories
-          int num_waypoints = 5;
-          Eigen::MatrixXd positions(num_joints, num_waypoints);
-          Eigen::MatrixXd velocities = Eigen::MatrixXd::Zero(num_joints, num_waypoints);
-          Eigen::MatrixXd accelerations = Eigen::MatrixXd::Zero(num_joints, num_waypoints);
-          Eigen::VectorXd nan_column = Eigen::VectorXd::Constant(num_joints, std::numeric_limits<double>::quiet_NaN());
-          // Is this one of the legs that takes a step first?
-          bool step_first = (i == 0 || i == 3 || i == 4);
-
-          // Set positions
-          positions.col(0) = leg_start;
-          positions.col(1) = step_first ? leg_mid : leg_start;
-          positions.col(2) = step_first ? leg_end : leg_start;
-          positions.col(3) = step_first ? leg_end : leg_mid;
-          positions.col(4) = leg_end;
-
-          velocities.col(1) = nan_column;
-          velocities.col(3) = nan_column;
-          accelerations.col(1) = nan_column;
-          accelerations.col(3) = nan_column;
-
-          Eigen::VectorXd times(num_waypoints);
-          double local_start = elapsed.count();
-          double total = startup_seconds - local_start;
-          times << local_start,
-                   local_start + total * 0.25,
-                   local_start + total * 0.5,
-                   local_start + total * 0.75,
-                   local_start + total;
-          startup_trajectories.push_back(trajectory::Trajectory::createUnconstrainedQp(
-            times, positions, &velocities, &accelerations));
-
+          Eigen::Vector3d gravity_vec = hexapod->getGravityDirection() * 9.8;
+          torques = curr_leg->computeTorques(jacobian_com, jacobian_ee, angles, vels, gravity_vec, /* dynamic_comp_torque,*/ foot_force); // TODO: add dynamic compensation
+          // For rendering:
+          if (hexapod_display)
+            hexapod_display->updateLeg(curr_leg, i, angles);
+          // TODO: add actual foot torque for startup?
+          // TODO: add vel, torque; test each one!
+          hexapod->setCommand(i, &angles, &vels, &torques);
         }
-
-        // TODO: move this startup logic outside of t.elapse() call, and then
-        // we don't need 'first_run'?
-        first_run = false;
+        hexapod->sendCommand();
+        if (elapsed.count() >= startup_seconds)
+        {
+          mode->setText("");
+          startup = false;
+        }
+        continue;
       }
-      mode->setText("Startup");
-     
-      // Follow t_l:
+
+      // Optionally slowly ramp up commands over the first few seconds
+      double ramp_up_scale = std::min(1.0, (elapsed.count() - startup_seconds) / 2.0);
+
+      mode->setText(hexapod->getMode() == hebi::Hexapod::Mode::Step ? "Step" : "Stance");
+
+      hexapod->updateStance(
+        translation_velocity_cmd.cast<double>(),
+        rotation_velocity_cmd.cast<double>(),
+        dt.count());
+
+      if (hexapod->needToStep())
+      {
+        hexapod->startStep(elapsed.count());
+      }
+
+      hexapod->updateSteps(elapsed.count());
+
+      // Calculate how the weight is distributed
+      hexapod->computeFootForces(elapsed.count(), foot_forces);
+
+      foot_forces *= ramp_up_scale;
+
+      Eigen::MatrixXd jacobian_ee;
+      robot_model::MatrixXdVector jacobian_com;
+      Eigen::VectorXd angles_plus_dt;
       for (int i = 0; i < 6; ++i)
       {
-        Eigen::VectorXd v(3);
-        Eigen::VectorXd a(3);
-        startup_trajectories[i]->getState(elapsed.count(), &angles, &v, &a);
-        vels = v;
-
-        Eigen::Vector3d foot_force = foot_forces.block<3,1>(0,i);
         hebi::Leg* curr_leg = hexapod->getLeg(i);
+        // TODO: add vels and torques
+        curr_leg->computeState(elapsed.count(), angles, vels, jacobian_ee, jacobian_com);
 
-        // Get the Jacobian
-        Eigen::MatrixXd jacobian_ee;
-        robot_model::MatrixXdVector jacobian_com;
-        curr_leg->computeJacobians(angles, jacobian_ee, jacobian_com);
-
-        Eigen::Vector3d gravity_vec = hexapod->getGravityDirection() * 9.8;
-        torques = curr_leg->computeTorques(jacobian_com, jacobian_ee, angles, vels, gravity_vec, /* dynamic_comp_torque,*/ foot_force); // TODO: add dynamic compensation
         // For rendering:
         if (hexapod_display)
           hexapod_display->updateLeg(curr_leg, i, angles);
-        // TODO: add actual foot torque for startup?
-        // TODO: add vel, torque; test each one!
+        
+        // Get torques
+        Eigen::Vector3d foot_force = foot_forces.block<3,1>(0,i);
+        Eigen::Vector3d gravity_vec = hexapod->getGravityDirection() * 9.8;
+        torques = hexapod->getLeg(i)->computeTorques(jacobian_com, jacobian_ee, angles, vels, gravity_vec, /*dynamic_comp_torque,*/ foot_force); // TODO:
+
         hexapod->setCommand(i, &angles, &vels, &torques);
       }
       hexapod->sendCommand();
-      if (elapsed.count() >= startup_seconds)
-      {
-        mode->setText("");
-        startup = false;
-      }
-      continue;
-    }
-
-    // Optionally slowly ramp up commands over the first few seconds
-    double ramp_up_scale = std::min(1.0, (elapsed.count() - startup_seconds) / 2.0);
-
-    mode->setText(hexapod->getMode() == hebi::Hexapod::Mode::Step ? "Step" : "Stance");
-
-    hexapod->updateStance(
-      translation_velocity_cmd.cast<double>(),
-      rotation_velocity_cmd.cast<double>(),
-      dt.count());
-
-    if (hexapod->needToStep())
-    {
-      hexapod->startStep(elapsed.count());
-    }
-
-    hexapod->updateSteps(elapsed.count());
-
-    // Calculate how the weight is distributed
-    hexapod->computeFootForces(elapsed.count(), foot_forces);
-
-    foot_forces *= ramp_up_scale;
-
-    Eigen::MatrixXd jacobian_ee;
-    robot_model::MatrixXdVector jacobian_com;
-    Eigen::VectorXd angles_plus_dt;
-    for (int i = 0; i < 6; ++i)
-    {
-      hebi::Leg* curr_leg = hexapod->getLeg(i);
-      // TODO: add vels and torques
-      curr_leg->computeState(elapsed.count(), angles, vels, jacobian_ee, jacobian_com);
-
-      // For rendering:
-      if (hexapod_display)
-        hexapod_display->updateLeg(curr_leg, i, angles);
-      
-      // Get torques
-      Eigen::Vector3d foot_force = foot_forces.block<3,1>(0,i);
-      Eigen::Vector3d gravity_vec = hexapod->getGravityDirection() * 9.8;
-      torques = hexapod->getLeg(i)->computeTorques(jacobian_com, jacobian_ee, angles, vels, gravity_vec, /*dynamic_comp_torque,*/ foot_force); // TODO:
-
-      hexapod->setCommand(i, &angles, &vels, &torques);
-    }
-    hexapod->sendCommand();
     }
   });
   bool res = app.exec();

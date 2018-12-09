@@ -64,6 +64,10 @@ int main(int argc, char** argv)
 
   // START CONTROL THREAD: this is so cool
   auto start_time = std::chrono::steady_clock::now();
+  // some time for state use
+  auto state_enter_time = std::chrono::steady_clock::now(); 
+  auto state_curr_time = std::chrono::steady_clock::now(); 
+  std::chrono::duration<double> state_run_time = std::chrono::seconds(0);
   long interval_ms = 5.0; // in milliseconds; e.g., 5 ms => 1000/5 = 200 Hz
   // http://stackoverflow.com/questions/30425772/c-11-calling-a-c-function-periodically
   std::atomic<bool> control_execute;
@@ -89,10 +93,6 @@ int main(int argc, char** argv)
       now_time = std::chrono::steady_clock::now();
       dt = std::chrono::duration_cast<std::chrono::duration<double>>(now_time - prev_time);
       prev_time = now_time;
-      // some time for state use
-      auto state_enter_time = std::chrono::steady_clock::now(); 
-      auto state_curr_time = std::chrono::steady_clock::now(); 
-      std::chrono::duration<double> state_run_time = std::chrono::seconds(0);
 
       std::chrono::duration<double> elapsed_time(now_time - start_time);
 
@@ -115,20 +115,21 @@ int main(int argc, char** argv)
           quadruped -> planStandUpTraj(startup_seconds);
           // state transition
           cur_ctrl_state = HEXA_CTRL_STAND_UP;
-          // state_enter_time = std::chrono::steady_clock::now(); 
-          continue;
+          state_enter_time = std::chrono::steady_clock::now(); 
+          break;
+
         case HEXA_CTRL_STAND_UP:
           // start up logic 
-          // state_curr_time = std::chrono::steady_clock::now();
-          // state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time - dt);
+          state_curr_time = std::chrono::steady_clock::now();
+          state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
+          quadruped -> execStandUpTraj(state_run_time.count());
+          std::cout << "state: " << state_run_time.count() << std::endl;
 
-          quadruped -> execStandUpTraj(elapsed_time.count());
-
-          if (elapsed_time.count() >= startup_seconds)
+          if (state_run_time.count() >= startup_seconds)
           {
             cur_ctrl_state = QUAD_CTRL_NORMAL;
           }
-          continue;
+          break;
 
         case QUAD_CTRL_NORMAL:
           // normal state logic 
@@ -142,11 +143,11 @@ int main(int argc, char** argv)
           //                            << leg_angles(1) << " "
           //                            << leg_angles(2) << std::endl;
           
-          continue;
+          break;
 
         case CTRL_STATES_COUNT:
         default:
-          continue;
+          break;
 
       }
       
