@@ -41,6 +41,7 @@ class Quadruped
     virtual ~Quadruped() noexcept;
 
     Eigen::Vector3d getGravityDirection();
+    Eigen::VectorXd getLegJointAngles(int index);
 
   private:
     // private constructor, it make sense because before construct must make sure group is successfully created

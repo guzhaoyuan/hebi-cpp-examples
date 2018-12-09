@@ -47,6 +47,9 @@ namespace hebi {
   {
     current_angles_ = new_angles;
   }
-
+  Eigen::VectorXd QuadLeg::getJointAngle()
+  {
+    return current_angles_;
+  }
 
 } // namespace hebi

@@ -131,4 +131,9 @@ namespace hebi {
     return gravity_direction_;
   }
 
+  Eigen::VectorXd Quadruped::getLegJointAngles(int index)
+  {
+    return legs_[index]->getJointAngle();
+  }
+
 } // namespace hebi

@@ -23,6 +23,7 @@ class QuadLeg
     int getIndex() { return index_; }
 
     void setJointAngles(Eigen::VectorXd& current_angles);
+    Eigen::VectorXd getJointAngle();
 
     hebi::robot_model::RobotModel& getKinematics() { return *kin_; }
     const hebi::robot_model::RobotModel& getKinematics() const { return *kin_; }

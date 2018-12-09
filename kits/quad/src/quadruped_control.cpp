@@ -82,6 +82,7 @@ int main(int argc, char** argv)
     {    
       // variables init
       Eigen::Vector3d grav_vec;
+      Eigen::VectorXd leg_angles;
       // Wait!
       auto now_time = std::chrono::steady_clock::now();
       auto need_to_wait = std::max(0, (int)std::chrono::duration_cast<std::chrono::milliseconds>(prev_time + std::chrono::milliseconds(interval_ms) - now_time).count());
@@ -124,10 +125,15 @@ int main(int argc, char** argv)
 
         case QUAD_CTRL_NORMAL:
           // normal state logic 
-          grav_vec = quadruped ->getGravityDirection();
+          // some debug print to show so far all implementation is correct
+          grav_vec = quadruped -> getGravityDirection();
           std::cout << "Gravity Direction: " << grav_vec(0) << " "
                                              << grav_vec(1) << " "
                                              << grav_vec(2) << std::endl;
+          leg_angles = quadruped -> getLegJointAngles(1);
+          std::cout << "Leg angle: " << leg_angles(0) << " "
+                                     << leg_angles(1) << " "
+                                     << leg_angles(2) << std::endl;
           
           continue;
 
