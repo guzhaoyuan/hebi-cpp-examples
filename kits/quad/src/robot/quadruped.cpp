@@ -205,6 +205,8 @@ namespace hebi {
     }
     sendCommand();
   }
+
+  // this is the hexapod original computation, i need another one for quadruped 
   void Quadruped::computeFootForces(Eigen::MatrixXd& foot_forces)
   {
     Eigen::VectorXd factors(6);
@@ -242,8 +244,8 @@ namespace hebi {
     for (int i = 0; i < 6; ++i)
       factors(i) = factors(i) * (1 + .33 * std::sin(M_PI * blend_factors(i)));
 
-  //  std::cout << "factors: " << factors << std::endl;
-  //  std::cout << "grav: " << grav << std::endl;
+    //  std::cout << "factors: " << factors << std::endl;
+    //  std::cout << "grav: " << grav << std::endl;
 
     foot_forces.resize(3,6);
     for (int i = 0; i < 6; ++i)
@@ -272,6 +274,135 @@ namespace hebi {
       for (int i = 0; i < num_joints_per_leg_; ++i)
         cmd_[leg_offset + i].actuator().effort().set((*torques)[i]);
     }
+  }
+
+  bool Quadruped::spreadAllLegs()
+  {
+    bool isReaching = true;
+    is_exec_traj = true;
+    Eigen::VectorXd goal;
+
+    // set command angle 
+    for (int i = 0; i < num_legs_; ++i)
+    {
+      auto base_frame = legs_[i] -> getBaseFrame();
+      Eigen::Vector4d tmp4(0.55, 0, 0.05, 0); // hard code first
+      Eigen::VectorXd home_stance_xyz = (base_frame * tmp4).topLeftCorner<3,1>();
+      legs_[i]->computeIK(goal, home_stance_xyz);
+      int leg_offset = i * num_joints_per_leg_;
+      cmd_[leg_offset + 0].actuator().position().set(goal(0));
+      cmd_[leg_offset + 1].actuator().position().set(goal(1));
+      cmd_[leg_offset + 2].actuator().position().set(goal(2));
+    }
+
+    // check if legs reach command angle
+    for (int i = 0; i < num_legs_; ++i)
+    {
+      Eigen::VectorXd curr_angle = legs_[i]->getJointAngle();
+      Eigen::VectorXd differece = goal - curr_angle;
+
+      if (differece.norm() > 0.5)
+      {
+        isReaching = false;
+      }
+    }
+    sendCommand();
+    return isReaching;
+  }
+
+  bool Quadruped::pushAllLegs()
+  {
+    bool isReaching = true;
+    is_exec_traj = true;
+    Eigen::VectorXd goal;
+
+    // set command angle 
+    for (int i = 0; i < num_legs_; ++i)
+    {
+      auto base_frame = legs_[i] -> getBaseFrame();
+      Eigen::Vector4d tmp4(0.55, 0, -0.21, 0); // hard code first
+      Eigen::VectorXd home_stance_xyz = (base_frame * tmp4).topLeftCorner<3,1>();
+      legs_[i]->computeIK(goal, home_stance_xyz);
+      int leg_offset = i * num_joints_per_leg_;
+      cmd_[leg_offset + 0].actuator().position().set(goal(0));
+      cmd_[leg_offset + 1].actuator().position().set(goal(1));
+      cmd_[leg_offset + 2].actuator().position().set(goal(2));
+    }
+
+    // check if legs reach command angle
+    for (int i = 0; i < num_legs_; ++i)
+    {
+      Eigen::VectorXd curr_angle = legs_[i]->getJointAngle();
+      Eigen::VectorXd differece = goal - curr_angle;
+
+      if (differece.norm() > 0.5)
+      {
+        isReaching = false;
+      }
+    }
+    sendCommand();
+    return isReaching;   
+  }
+
+  bool Quadruped::prepareQuadMode()
+  {
+    bool isReaching = true;
+    is_exec_traj = true;
+    Eigen::VectorXd goal;
+
+    Eigen::Vector3d gravity_vec = getGravityDirection() * 9.8f;
+
+
+    // set command angle 
+    // 0 1 4 5 locomote legs  2 3 manipulate
+    for (int i = 0; i < num_legs_; i == 1 ? i = i+3 : i++)
+    {
+      auto base_frame = legs_[i] -> getBaseFrame();
+      Eigen::Vector4d tmp4(0.55, 0, -0.31, 0); // hard code first
+      Eigen::VectorXd home_stance_xyz = (base_frame * tmp4).topLeftCorner<3,1>();
+      legs_[i]->computeIK(goal, home_stance_xyz);
+      int leg_offset = i * num_joints_per_leg_;
+      cmd_[leg_offset + 0].actuator().position().set(goal(0));
+      cmd_[leg_offset + 1].actuator().position().set(goal(1));
+      cmd_[leg_offset + 2].actuator().position().set(goal(2));
+
+
+      Eigen::Vector3d vels(0,0,0);
+      Eigen::Vector3d foot_force = 0.25* -gravity_direction_ * weight_;
+      Eigen::Vector3d torques = legs_[i]-> computeCompensateTorques(goal, vels, gravity_vec, foot_force); 
+
+      cmd_[leg_offset + 0].actuator().effort().set(torques(0));
+      cmd_[leg_offset + 1].actuator().effort().set(torques(1));
+      cmd_[leg_offset + 2].actuator().effort().set(torques(2));
+    }
+    for (int i = 2; i < 4; i++)
+    {
+      auto base_frame = legs_[i] -> getBaseFrame();
+      Eigen::Vector4d tmp4(0.35, 0, 0, 0); // hard code first
+      Eigen::VectorXd home_stance_xyz = (base_frame * tmp4).topLeftCorner<3,1>();
+      legs_[i]->computeIK(goal, home_stance_xyz);
+      int leg_offset = i * num_joints_per_leg_;
+      cmd_[leg_offset + 0].actuator().position().set(goal(0));
+      cmd_[leg_offset + 1].actuator().position().set(goal(1));
+      cmd_[leg_offset + 2].actuator().position().set(goal(2));
+    }
+      
+
+
+
+    // check if legs reach command angle
+    for (int i = 0; i < num_legs_; ++i)
+    {
+      Eigen::VectorXd curr_angle = legs_[i]->getJointAngle();
+      Eigen::VectorXd differece = goal - curr_angle;
+
+      if (differece.norm() > 0.5)
+      {
+        isReaching = false;
+      }
+    }
+    sendCommand();
+    return isReaching;   
   }
 
   void Quadruped::sendCommand()

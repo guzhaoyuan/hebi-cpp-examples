@@ -19,11 +19,15 @@ using namespace Eigen;
 enum ctrl_state_type {
   HEXA_CTRL_STAND_UP_PLAN,
   HEXA_CTRL_STAND_UP,
+
+  QUAD_CTRL_STAND_UP1,
+  QUAD_CTRL_STAND_UP2,
+  QUAD_CTRL_STAND_UP3,
   QUAD_CTRL_NORMAL,
   CTRL_STATES_COUNT
 };
 // state transition variables
-double startup_seconds = 4.5;
+double startup_seconds = 1.0;
 
 int main(int argc, char** argv)
 {
@@ -42,13 +46,13 @@ int main(int argc, char** argv)
   if (!is_quiet && !input->isConnected())
   {
       std::cout << "Could not find input joystick." << std::endl;
-      return 1;
+      // return 1;
   }
   // ------------ Retry a "reset" multiple times! Wait for this in a loop.
-  while (is_quiet && !input->isConnected())
-  {
-      static_cast<input::InputManagerMobileIO*>(input.get())->reset();
-  }
+  // while (is_quiet && !input->isConnected())
+  // {
+  //     static_cast<input::InputManagerMobileIO*>(input.get())->reset();
+  // }
 
   std::cout << "Found input joystick -- starting control program.\n";
   // INIT STEP 3: init robot planner
@@ -75,7 +79,7 @@ int main(int argc, char** argv)
   std::thread control_thread([&]()
   {
     // the main control thread
-    ctrl_state_type cur_ctrl_state = HEXA_CTRL_STAND_UP_PLAN;
+    ctrl_state_type cur_ctrl_state = QUAD_CTRL_STAND_UP1;
     auto prev_time = std::chrono::steady_clock::now();
     // Get dt (in seconds)
     std::chrono::duration<double> dt = std::chrono::seconds(0);
@@ -84,6 +88,7 @@ int main(int argc, char** argv)
       // variables init
       Eigen::Vector3d grav_vec;
       Eigen::VectorXd leg_angles;
+      bool isFinished;
       // Wait!
       auto now_time = std::chrono::steady_clock::now();
       auto need_to_wait = std::max(0, (int)std::chrono::duration_cast<std::chrono::milliseconds>(prev_time + std::chrono::milliseconds(interval_ms) - now_time).count());
@@ -131,17 +136,54 @@ int main(int argc, char** argv)
           }
           break;
 
+        // let me write a standup strategy myself
+        case QUAD_CTRL_STAND_UP1:
+          state_curr_time = std::chrono::steady_clock::now();
+          state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
+
+          isFinished = quadruped -> spreadAllLegs();
+          if (isFinished || state_run_time.count() >= startup_seconds)
+          {
+            cur_ctrl_state = QUAD_CTRL_STAND_UP2;
+            state_enter_time = std::chrono::steady_clock::now(); 
+          }
+          break;
+        case QUAD_CTRL_STAND_UP2:
+          state_curr_time = std::chrono::steady_clock::now();
+          state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
+
+          isFinished = quadruped -> pushAllLegs();
+          if (isFinished || state_run_time.count() >= startup_seconds)
+          {
+            cur_ctrl_state = QUAD_CTRL_STAND_UP3;
+            state_enter_time = std::chrono::steady_clock::now(); 
+          }
+          break;
+        case QUAD_CTRL_STAND_UP3:
+          state_curr_time = std::chrono::steady_clock::now();
+          state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
+
+          isFinished = quadruped -> prepareQuadMode();
+          if (isFinished || state_run_time.count() >= startup_seconds)
+          {
+            cur_ctrl_state = QUAD_CTRL_NORMAL;
+            state_enter_time = std::chrono::steady_clock::now(); 
+          }
+          break;
+
         case QUAD_CTRL_NORMAL:
           // normal state logic 
           // some debug print to show so far all implementation is correct
-          // grav_vec = quadruped -> getGravityDirection();
-          // std::cout << "Gravity Direction: " << grav_vec(0) << " "
-          //                                    << grav_vec(1) << " "
-          //                                    << grav_vec(2) << std::endl;
-          // leg_angles = quadruped -> getLegJointAngles(1);
-          // std::cout << "Leg angle: " << leg_angles(0) << " "
-          //                            << leg_angles(1) << " "
-          //                            << leg_angles(2) << std::endl;
+          grav_vec = quadruped -> getGravityDirection();
+          std::cout << "Gravity Direction: " << grav_vec(0) << " "
+                                             << grav_vec(1) << " "
+                                             << grav_vec(2) << std::endl;
+          leg_angles = quadruped -> getLegJointAngles(1);
+          std::cout << "Leg angle: " << leg_angles(0) << " "
+                                     << leg_angles(1) << " "
+                                     << leg_angles(2) << std::endl;
+
+          isFinished = quadruped -> prepareQuadMode();
           
           break;
 

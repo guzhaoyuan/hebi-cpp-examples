@@ -38,6 +38,8 @@ namespace hebi {
 class Quadruped 
 {
   public:
+    // 1 2 5 6 are locomote legs, 3 4 are manipulate legs
+    enum struct CtrlLegType { all, locomote, manipulate };
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW // Allow Eigen member variables
 
     // learn from hebi source code to do this fancy construction method
@@ -50,6 +52,11 @@ class Quadruped
     bool execStandUpTraj(double curr_time);
 
     void computeFootForces(Eigen::MatrixXd& foot_forces);
+
+    bool spreadAllLegs();
+    bool pushAllLegs();
+    bool prepareQuadMode();
+    bool isExecution() {return is_exec_traj;}
 
     void setCommand(int index, const VectorXd* angles, const VectorXd* vels, const VectorXd* torques);
     void sendCommand();
@@ -77,6 +84,7 @@ class Quadruped
 
     // planner trajectories
     std::vector<std::shared_ptr<trajectory::Trajectory>> startup_trajectories;
+    bool is_exec_traj; // flag to show that it is still running trajectories 
 
     // control constants
     const float fbk_frq_hz_ = 200.0f;
