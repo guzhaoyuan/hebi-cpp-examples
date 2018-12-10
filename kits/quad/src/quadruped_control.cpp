@@ -23,11 +23,12 @@ enum ctrl_state_type {
   QUAD_CTRL_STAND_UP1,
   QUAD_CTRL_STAND_UP2,
   QUAD_CTRL_STAND_UP3,
-  QUAD_CTRL_NORMAL,
+  QUAD_CTRL_NORMAL_LEFT,
+  QUAD_CTRL_NORMAL_RIGHT,
   CTRL_STATES_COUNT
 };
 // state transition variables
-double startup_seconds = 1.0;
+double startup_seconds = 1.8;
 
 int main(int argc, char** argv)
 {
@@ -88,6 +89,7 @@ int main(int argc, char** argv)
       // variables init
       Eigen::Vector3d grav_vec;
       Eigen::VectorXd leg_angles;
+      double leg_swing_time = 0.7;   // need to be tested 
       bool isFinished;
       // Wait!
       auto now_time = std::chrono::steady_clock::now();
@@ -111,7 +113,7 @@ int main(int argc, char** argv)
       rotation_velocity_cmd = input->getRotationVelocityCmd();
 
       // control state machine (do not put actual execution logic here)
-      std::cout << "|Time: " << elapsed_time.count() <<  "| my current state is: " << cur_ctrl_state <<std::endl;
+      // std::cout << "|Time: " << elapsed_time.count() <<  "| my current state is: " << cur_ctrl_state <<std::endl;
       switch (cur_ctrl_state)
       {
   
@@ -132,17 +134,19 @@ int main(int argc, char** argv)
 
           if (state_run_time.count() >= startup_seconds)
           {
-            cur_ctrl_state = QUAD_CTRL_NORMAL;
+            cur_ctrl_state = QUAD_CTRL_NORMAL_LEFT;
           }
           break;
 
         // let me write a standup strategy myself
+        // it takes three step, first spread legs to let belly touch the ground, then push legs to lift the body
+        // finally lift the two arms 
         case QUAD_CTRL_STAND_UP1:
           state_curr_time = std::chrono::steady_clock::now();
           state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
 
           isFinished = quadruped -> spreadAllLegs();
-          if (isFinished || state_run_time.count() >= startup_seconds)
+          if (state_run_time.count() >= startup_seconds)
           {
             cur_ctrl_state = QUAD_CTRL_STAND_UP2;
             state_enter_time = std::chrono::steady_clock::now(); 
@@ -153,7 +157,7 @@ int main(int argc, char** argv)
           state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
 
           isFinished = quadruped -> pushAllLegs();
-          if (isFinished || state_run_time.count() >= startup_seconds)
+          if (state_run_time.count() >= startup_seconds)
           {
             cur_ctrl_state = QUAD_CTRL_STAND_UP3;
             state_enter_time = std::chrono::steady_clock::now(); 
@@ -164,26 +168,49 @@ int main(int argc, char** argv)
           state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
 
           isFinished = quadruped -> prepareQuadMode();
-          if (isFinished || state_run_time.count() >= startup_seconds)
+          if (state_run_time.count() >= startup_seconds)
           {
-            cur_ctrl_state = QUAD_CTRL_NORMAL;
+            cur_ctrl_state = QUAD_CTRL_NORMAL_LEFT;
             state_enter_time = std::chrono::steady_clock::now(); 
+            quadruped -> prepareTrajectories(Quadruped::SwingMode::swing_mode_virtualLeg1, leg_swing_time);
           }
           break;
 
-        case QUAD_CTRL_NORMAL:
-          // normal state logic 
-          // some debug print to show so far all implementation is correct
-          grav_vec = quadruped -> getGravityDirection();
-          std::cout << "Gravity Direction: " << grav_vec(0) << " "
-                                             << grav_vec(1) << " "
-                                             << grav_vec(2) << std::endl;
-          leg_angles = quadruped -> getLegJointAngles(1);
-          std::cout << "Leg angle: " << leg_angles(0) << " "
-                                     << leg_angles(1) << " "
-                                     << leg_angles(2) << std::endl;
+        case QUAD_CTRL_NORMAL_LEFT:
+          state_curr_time = std::chrono::steady_clock::now();
+          state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
 
-          isFinished = quadruped -> prepareQuadMode();
+          // some debug print to show so far all implementation is correct
+          // grav_vec = quadruped -> getGravityDirection();
+          // std::cout << "Gravity Direction: " << grav_vec(0) << " "
+          //                                    << grav_vec(1) << " "
+          //                                    << grav_vec(2) << std::endl;
+          // leg_angles = quadruped -> getLegJointAngles(1);
+          // std::cout << "Leg angle: " << leg_angles(0) << " "
+          //                            << leg_angles(1) << " "
+          //                            << leg_angles(2) << std::endl;
+
+          quadruped -> runTest(Quadruped::SwingMode::swing_mode_virtualLeg1, state_run_time.count());
+          if (state_run_time.count() >= leg_swing_time)
+          {
+            cur_ctrl_state = QUAD_CTRL_NORMAL_RIGHT;
+            state_enter_time = std::chrono::steady_clock::now(); 
+            quadruped -> prepareTrajectories(Quadruped::SwingMode::swing_mode_virtualLeg2, leg_swing_time);
+          }
+          break;
+
+        case QUAD_CTRL_NORMAL_RIGHT:
+          state_curr_time = std::chrono::steady_clock::now();
+          state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
+
+
+          quadruped -> runTest(Quadruped::SwingMode::swing_mode_virtualLeg2, state_run_time.count());
+          if (state_run_time.count() >= leg_swing_time)
+          {
+            cur_ctrl_state = QUAD_CTRL_NORMAL_LEFT;
+            state_enter_time = std::chrono::steady_clock::now(); 
+            quadruped -> prepareTrajectories(Quadruped::SwingMode::swing_mode_virtualLeg1, leg_swing_time);
+          }
           
           break;
 

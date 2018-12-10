@@ -2,6 +2,7 @@
 #include <thread>
 #include <ctime>
 #include <fstream>
+#include <iostream>
 
 #include "quadruped.hpp"
 
@@ -329,17 +330,6 @@ namespace hebi {
       cmd_[leg_offset + 2].actuator().position().set(goal(2));
     }
 
-    // check if legs reach command angle
-    for (int i = 0; i < num_legs_; ++i)
-    {
-      Eigen::VectorXd curr_angle = legs_[i]->getJointAngle();
-      Eigen::VectorXd differece = goal - curr_angle;
-
-      if (differece.norm() > 0.5)
-      {
-        isReaching = false;
-      }
-    }
     sendCommand();
     return isReaching;   
   }
@@ -357,6 +347,7 @@ namespace hebi {
     // 0 1 4 5 locomote legs  2 3 manipulate
     for (int i = 0; i < num_legs_; i == 1 ? i = i+3 : i++)
     {
+      // TODO: consider this as 
       auto base_frame = legs_[i] -> getBaseFrame();
       Eigen::Vector4d tmp4(0.55, 0, -0.31, 0); // hard code first
       Eigen::VectorXd home_stance_xyz = (base_frame * tmp4).topLeftCorner<3,1>();
@@ -366,8 +357,8 @@ namespace hebi {
       cmd_[leg_offset + 1].actuator().position().set(goal(1));
       cmd_[leg_offset + 2].actuator().position().set(goal(2));
 
-
       Eigen::Vector3d vels(0,0,0);
+      // locally compensate foot force, need a dedicated function later
       Eigen::Vector3d foot_force = 0.25* -gravity_direction_ * weight_;
       Eigen::Vector3d torques = legs_[i]-> computeCompensateTorques(goal, vels, gravity_vec, foot_force); 
 
@@ -386,23 +377,274 @@ namespace hebi {
       cmd_[leg_offset + 1].actuator().position().set(goal(1));
       cmd_[leg_offset + 2].actuator().position().set(goal(2));
     }
-      
-
-
-
-    // check if legs reach command angle
-    for (int i = 0; i < num_legs_; ++i)
-    {
-      Eigen::VectorXd curr_angle = legs_[i]->getJointAngle();
-      Eigen::VectorXd differece = goal - curr_angle;
-
-      if (differece.norm() > 0.5)
-      {
-        isReaching = false;
-      }
-    }
     sendCommand();
     return isReaching;   
+  }
+
+  // just a test function, will be very nasty, a lot of quick and dirty tricks...
+  // may be i will use similar foot force calculation as well
+
+  /* 
+    describe convention for quadruped here
+    may move to other location later
+    For the four locomotion legs, we denote them as 
+    0(LF)      1(RF)
+    
+    4(LH)      5(RH)
+    F is front,  H is hind.  This is ETH people's notation
+    
+    I will first use virtual leg strategy, LF-RH is virtual leg 1, and RF-LH is virtual leg 2.
+    In this function, mode means which virtal leg is in swing mode and which is stance.
+    Outside state machine calls runTest periodically with different mode argument, then 
+    in this function, legs execute trajectories
+
+
+    here the function does not actually use virtual leg placement strategy yet because we not yet have 
+    body velocity measurement, let me work out a open loop gait first
+  */
+  void Quadruped::runTest(SwingMode mode, double curr_time)
+  {
+    Eigen::VectorXd goal;
+    Eigen::Vector3d gravity_vec = getGravityDirection() * 9.8f;
+    // won't use these manipulate legs for a while so just hold them up
+    for (int i = 2; i < 4; i++)
+    {
+      auto base_frame = legs_[i] -> getBaseFrame();
+      Eigen::Vector4d tmp4(0.35, 0, 0, 0); // hard code first
+      Eigen::VectorXd home_stance_xyz = (base_frame * tmp4).topLeftCorner<3,1>();
+      legs_[i]->computeIK(goal, home_stance_xyz);
+      int leg_offset = i * num_joints_per_leg_;
+      cmd_[leg_offset + 0].actuator().position().set(goal(0));
+      cmd_[leg_offset + 1].actuator().position().set(goal(1));
+      cmd_[leg_offset + 2].actuator().position().set(goal(2));
+    }
+
+    // id of legs
+    int swing_vleg[2], stance_vleg[2];
+    if (mode == Quadruped::SwingMode::swing_mode_virtualLeg1)
+    {
+      swing_vleg[0] = 0;
+      swing_vleg[1] = 5;
+      stance_vleg[0] = 1;
+      stance_vleg[1] = 4;
+    }
+    else
+    {
+      swing_vleg[0] = 1;
+      swing_vleg[1] = 4;
+      stance_vleg[0] = 0;
+      stance_vleg[1] = 5;
+    }
+    // for swing leg
+    for (int i = 0; i<2;i++)
+    {
+      Eigen::VectorXd traj_angles(3);
+      Eigen::VectorXd traj_vels(3);
+      Eigen::VectorXd traj_accs(3);
+      Eigen::Vector3d foot_force = 0* -gravity_direction_ * weight_;
+      // if (i == 0 && swing_vleg[0] == 0)
+      // {
+        swing_trajectories[i]->getState(curr_time, &traj_angles, &traj_vels, &traj_accs);
+              std::cout << "traj_angles is " << traj_angles(0) << " " 
+                                         << traj_angles(1) << " "
+                                         << traj_angles(2) <<std::endl; 
+      // }
+      // else
+      // {
+      //   auto base_frame = legs_[swing_vleg[i]] -> getBaseFrame();
+      //   Eigen::Vector4d tmp4(0.55, 0, -0.31, 0); // hard code first
+      //   Eigen::VectorXd home_stance_xyz = (base_frame * tmp4).topLeftCorner<3,1>();
+      //   legs_[swing_vleg[i]]->computeIK(traj_angles, home_stance_xyz);
+      // }      
+      int leg_offset = swing_vleg[i] * num_joints_per_leg_;
+      cmd_[leg_offset + 0].actuator().position().set(traj_angles(0));
+      cmd_[leg_offset + 1].actuator().position().set(traj_angles(1));
+      cmd_[leg_offset + 2].actuator().position().set(traj_angles(2));
+
+      // swing leg does not compensate foot force
+      // if (i == 0 && swing_vleg[0] == 0)
+      // {
+      foot_force = 0.1* -gravity_direction_ * weight_;
+      // }
+      //Eigen::Vector3d vels(0,0,0);
+      Eigen::Vector3d torques = legs_[swing_vleg[i]]-> computeCompensateTorques(traj_angles, traj_vels, gravity_vec, foot_force); 
+
+      cmd_[leg_offset + 0].actuator().effort().set(torques(0));
+      cmd_[leg_offset + 1].actuator().effort().set(torques(1));
+      cmd_[leg_offset + 2].actuator().effort().set(torques(2));
+    }
+    // for stance leg
+    for (int i = 0; i<2;i++)
+    {
+      Eigen::VectorXd traj_angles(3);
+      Eigen::VectorXd traj_vels(3);
+      Eigen::VectorXd traj_accs(3);
+      
+      // if (i == 0 && stance_vleg[0] == 0)
+      // {
+        stance_trajectories[i]->getState(curr_time, &traj_angles, &traj_vels, &traj_accs);
+      // }
+      // auto base_frame = legs_[stance_vleg[i]] -> getBaseFrame();
+      // Eigen::Vector4d tmp4(0.55, 0, -0.31, 0); // hard code first
+      // Eigen::VectorXd home_stance_xyz = (base_frame * tmp4).topLeftCorner<3,1>();
+      // legs_[stance_vleg[i]]->computeIK(traj_angles, home_stance_xyz);
+      
+      int leg_offset = stance_vleg[i] * num_joints_per_leg_;
+      cmd_[leg_offset + 0].actuator().position().set(traj_angles(0));
+      cmd_[leg_offset + 1].actuator().position().set(traj_angles(1));
+      cmd_[leg_offset + 2].actuator().position().set(traj_angles(2));
+
+      
+      Eigen::Vector3d foot_force = 0.20* -gravity_direction_ * weight_;
+      Eigen::Vector3d torques = legs_[stance_vleg[i]]-> computeCompensateTorques(traj_angles, traj_vels, gravity_vec, foot_force); 
+
+      cmd_[leg_offset + 0].actuator().effort().set(torques(0));
+      cmd_[leg_offset + 1].actuator().effort().set(torques(1));
+      cmd_[leg_offset + 2].actuator().effort().set(torques(2));
+    }
+
+    sendCommand();
+  }
+
+  // assistant function for runTest, it should be called when it is about to switch state
+  void Quadruped::prepareTrajectories(SwingMode mode, double leg_swing_time)
+  {
+    // id of legs
+    int swing_vleg[2], stance_vleg[2];
+    if (mode == Quadruped::SwingMode::swing_mode_virtualLeg1)
+    {
+      swing_vleg[0] = 0;
+      swing_vleg[1] = 5;
+      stance_vleg[0] = 1;
+      stance_vleg[1] = 4;
+    }
+    else
+    {
+      swing_vleg[0] = 1;
+      swing_vleg[1] = 4;
+      stance_vleg[0] = 0;
+      stance_vleg[1] = 5;
+    }
+    // first swing legs
+    swing_trajectories.clear();
+    for (int i = 0; i<2;i++)
+    {
+      Eigen::VectorXd start_leg_angles = legs_[swing_vleg[i]] -> getJointAngle();
+      // 12-9 before left, have a plan for 12-10
+      // need to read HexapodView2D tomorrow
+      // test if getFK is also world frame, caclulate FK use this angle, see if it agree with base*tmp4 before
+      
+      hebi::robot_model::Matrix4dVector frames;
+      // endeffector only one frame, take me very long time to figure out this frame thing
+      // all FKs are represented in base frame, here the "frametype" essentially means point of interets
+      legs_[swing_vleg[i]] -> getKinematics().getFK(HebiFrameTypeEndEffector, start_leg_angles, frames); // I assume this is in the frame of base frame
+      Eigen::Vector3d start_leg_ee_xyz = frames[0].topRightCorner<3,1>();  // make sure this is in com frame
+      int numFrame = legs_[swing_vleg[i]] -> getKinematics().getFrameCount(HebiFrameTypeEndEffector);
+      std::cout << "prepare trajectories for leg " << swing_vleg[i] << " (frame " << numFrame << " )" << std::endl;
+      std::cout << "start_leg_ee_xyz is " << start_leg_ee_xyz(0) << " " 
+                                         << start_leg_ee_xyz(1) << " "
+                                         << start_leg_ee_xyz(2) <<std::endl; 
+      Eigen::VectorXd mid_leg_ee_xyz = start_leg_ee_xyz + Eigen::Vector3d(0.00,0.0,0.13);
+
+      std::cout << "mid_leg_ee_xyz is " << mid_leg_ee_xyz(0) << " " 
+                                         << mid_leg_ee_xyz(1) << " "
+                                         << mid_leg_ee_xyz(2) <<std::endl; 
+      Eigen::VectorXd end_leg_ee_xyz = start_leg_ee_xyz + Eigen::Vector3d(0.00,0.0,0.0);
+      std::cout << "end_leg_ee_xyz is " << end_leg_ee_xyz(0) << " " 
+                                         << end_leg_ee_xyz(1) << " "
+                                         << end_leg_ee_xyz(2) <<std::endl; 
+
+      std::cout << "start_leg_angle is " << start_leg_angles(0) << " " 
+                                         << start_leg_angles(1) << " "
+                                         << start_leg_angles(2) <<std::endl; 
+      Eigen::VectorXd mid_leg_angles;
+      Eigen::VectorXd end_leg_angles;
+      legs_[swing_vleg[i]] -> computeIK(mid_leg_angles, mid_leg_ee_xyz);
+      std::cout << "mid_leg_angles is " << mid_leg_angles(0) << " " 
+                                         << mid_leg_angles(1) << " "
+                                         << mid_leg_angles(2) <<std::endl; 
+      legs_[swing_vleg[i]] -> computeIK(end_leg_angles, end_leg_ee_xyz);
+      std::cout << "end_leg_angles is " << end_leg_angles(0) << " " 
+                                         << end_leg_angles(1) << " "
+                                         << end_leg_angles(2) <<std::endl; 
+
+      // std::cout << "leg fk" << i << std:endl;
+      // Convert for trajectories
+      int num_waypoints = 3;
+      Eigen::MatrixXd positions(num_joints_per_leg_, num_waypoints);
+      Eigen::MatrixXd velocities = Eigen::MatrixXd::Zero(num_joints_per_leg_, num_waypoints);
+      Eigen::MatrixXd accelerations = Eigen::MatrixXd::Zero(num_joints_per_leg_, num_waypoints);
+      Eigen::VectorXd nan_column = Eigen::VectorXd::Constant(num_joints_per_leg_, std::numeric_limits<double>::quiet_NaN());
+
+      // Set positions
+      positions.col(0) = start_leg_angles;
+      positions.col(1) = mid_leg_angles;
+      positions.col(2) = end_leg_angles;
+
+      velocities.col(1) = nan_column;
+      accelerations.col(1) = nan_column;
+
+      Eigen::VectorXd times(num_waypoints);
+      double local_start = 0; //fine tune later
+      double total = leg_swing_time;     //fine tune later
+      times << local_start,
+              local_start + total * 0.5,
+              local_start + total;
+      swing_trajectories.push_back(trajectory::Trajectory::createUnconstrainedQp(
+        times, positions, &velocities, &accelerations));
+    }
+
+    // second stance leg, temporarily use similar trajectory, but I guess do not need to do so, we will see
+    stance_trajectories.clear();
+    for (int i = 0; i<2;i++)
+    {
+      Eigen::VectorXd start_leg_angles;
+      auto base_frame = legs_[stance_vleg[i]] -> getBaseFrame();
+      Eigen::Vector4d tmp4(0.55, 0, -0.31, 0); // hard code first
+      Eigen::VectorXd home_stance_xyz = (base_frame * tmp4).topLeftCorner<3,1>();
+      //Eigen::VectorXd start_leg_angles = legs_[stance_vleg[i]] -> getJointAngle();
+      legs_[stance_vleg[i]]->computeIK(start_leg_angles, home_stance_xyz);
+      // 12-9 before left, have a plan for 12-10
+      // need to read HexapodView2D tomorrow
+      // test if getFK is also world frame, caclulate FK use this angle, see if it agree with base*tmp4 before
+      
+      hebi::robot_model::Matrix4dVector frames;
+      // endeffector only one frame
+      legs_[stance_vleg[i]] -> getKinematics().getFK(HebiFrameTypeEndEffector, start_leg_angles, frames); // I assume this is in the frame of base frame
+      Eigen::Vector3d start_leg_ee_xyz = frames[0].topRightCorner<3,1>();  // make sure this is in com frame
+      Eigen::VectorXd mid_leg_ee_xyz = start_leg_ee_xyz + Eigen::Vector3d(-0.00,0.0,0.0);
+      Eigen::VectorXd end_leg_ee_xyz = start_leg_ee_xyz + Eigen::Vector3d(-0.00,0.0,0.0);
+      Eigen::VectorXd mid_leg_angles;
+      Eigen::VectorXd end_leg_angles;
+      legs_[stance_vleg[i]] -> computeIK(mid_leg_angles, mid_leg_ee_xyz);
+      legs_[stance_vleg[i]] -> computeIK(end_leg_angles, end_leg_ee_xyz);
+
+      // std::cout << "leg fk" << i << std:endl;
+      // Convert for trajectories
+      int num_waypoints = 3;
+      Eigen::MatrixXd positions(num_joints_per_leg_, num_waypoints);
+      Eigen::MatrixXd velocities = Eigen::MatrixXd::Zero(num_joints_per_leg_, num_waypoints);
+      Eigen::MatrixXd accelerations = Eigen::MatrixXd::Zero(num_joints_per_leg_, num_waypoints);
+      Eigen::VectorXd nan_column = Eigen::VectorXd::Constant(num_joints_per_leg_, std::numeric_limits<double>::quiet_NaN());
+
+      // Set positions
+      positions.col(0) = start_leg_angles;
+      positions.col(1) = mid_leg_angles;
+      positions.col(2) = end_leg_angles;
+
+      velocities.col(1) = nan_column;
+      accelerations.col(1) = nan_column;
+
+      Eigen::VectorXd times(num_waypoints);
+      double local_start = 0; //fine tune later
+      double total = leg_swing_time;     //fine tune later
+      times << local_start,
+              local_start + total * 0.5,
+              local_start + total;
+      stance_trajectories.push_back(trajectory::Trajectory::createUnconstrainedQp(
+        times, positions, &velocities, &accelerations));
+    }
+
   }
 
   void Quadruped::sendCommand()

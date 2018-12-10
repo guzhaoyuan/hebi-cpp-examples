@@ -40,6 +40,7 @@ class Quadruped
   public:
     // 1 2 5 6 are locomote legs, 3 4 are manipulate legs
     enum struct CtrlLegType { all, locomote, manipulate };
+    enum struct SwingMode {swing_mode_virtualLeg1, swing_mode_virtualLeg2};
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW // Allow Eigen member variables
 
     // learn from hebi source code to do this fancy construction method
@@ -48,14 +49,26 @@ class Quadruped
 
     Eigen::Vector3d getGravityDirection();
     Eigen::VectorXd getLegJointAngles(int index);
-    bool planStandUpTraj(double duration_time);
-    bool execStandUpTraj(double curr_time);
 
     void computeFootForces(Eigen::MatrixXd& foot_forces);
 
+    // these functions are called in outside state machine, they must be called every iteration
+    // and, in all these modes they will call sendCommand. Which is not good because we may want to combine 
+    // functions in a state, so the cmd will be refreshed twice.
+    // I think a better design methdology would either be 
+    // 1. make sure outside state machine always only call one and only one
+    //    function to enter quadruped, and combine state logics all in this function
+    // 2. at state machine, explicitly call sendCommand after call functions that set cmd 
+    //  It is just different levels of abstraction, need more thinking 
+    bool planStandUpTraj(double duration_time);
+    bool execStandUpTraj(double curr_time);
     bool spreadAllLegs();
     bool pushAllLegs();
     bool prepareQuadMode();
+    void runTest(SwingMode mode, double curr_time);
+    void prepareTrajectories(SwingMode mode, double leg_swing_time);
+
+
     bool isExecution() {return is_exec_traj;}
 
     void setCommand(int index, const VectorXd* angles, const VectorXd* vels, const VectorXd* torques);
@@ -84,6 +97,8 @@ class Quadruped
 
     // planner trajectories
     std::vector<std::shared_ptr<trajectory::Trajectory>> startup_trajectories;
+    std::vector<std::shared_ptr<trajectory::Trajectory>> stance_trajectories;  // used in runTest
+    std::vector<std::shared_ptr<trajectory::Trajectory>> swing_trajectories;   // used in runTest
     bool is_exec_traj; // flag to show that it is still running trajectories 
 
     // control constants
