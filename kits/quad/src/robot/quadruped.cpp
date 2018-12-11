@@ -141,7 +141,7 @@ namespace hebi {
       
 
       auto base_frame = legs_[i] -> getBaseFrame();
-      Eigen::Vector4d tmp4(0.55, 0, -0.21, 0); // hard code first
+      Eigen::Vector4d tmp4(0.45, 0, -0.28, 0); // hard code first
       Eigen::VectorXd home_stance_xyz = (base_frame * tmp4).topLeftCorner<3,1>();
       legs_[i]->computeIK(leg_end, home_stance_xyz);
       // TODO: fix! (quick and dirty -- leg mid is hardcoded as offset from leg end)
@@ -206,7 +206,7 @@ namespace hebi {
     }
     sendCommand();
   }
-
+  
   // this is the hexapod original computation, i need another one for quadruped 
   void Quadruped::computeFootForces(Eigen::MatrixXd& foot_forces)
   {
@@ -221,7 +221,7 @@ namespace hebi {
     for (int i = 0; i < 6; ++i)
     {
       auto base_frame = legs_[i] -> getBaseFrame();
-      Eigen::Vector4d tmp4(0.55, 0, -0.21, 0); // hard code first
+      Eigen::Vector4d tmp4(0.45, 0, -0.28, 0); // hard code first
       Eigen::VectorXd home_stance_xyz = (base_frame * tmp4).topLeftCorner<3,1>();
       Eigen::Vector3d stance = home_stance_xyz;
       double dot_prod = grav.dot(stance);
@@ -321,7 +321,7 @@ namespace hebi {
     for (int i = 0; i < num_legs_; ++i)
     {
       auto base_frame = legs_[i] -> getBaseFrame();
-      Eigen::Vector4d tmp4(0.55, 0, -0.21, 0); // hard code first
+      Eigen::Vector4d tmp4(0.45, 0, -0.28, 0); // hard code first
       Eigen::VectorXd home_stance_xyz = (base_frame * tmp4).topLeftCorner<3,1>();
       legs_[i]->computeIK(goal, home_stance_xyz);
       int leg_offset = i * num_joints_per_leg_;
@@ -349,7 +349,7 @@ namespace hebi {
     {
       // TODO: consider this as 
       auto base_frame = legs_[i] -> getBaseFrame();
-      Eigen::Vector4d tmp4(0.55, 0, -0.31, 0); // hard code first
+      Eigen::Vector4d tmp4(0.45, 0, -0.28, 0); // hard code first
       Eigen::VectorXd home_stance_xyz = (base_frame * tmp4).topLeftCorner<3,1>();
       legs_[i]->computeIK(goal, home_stance_xyz);
       int leg_offset = i * num_joints_per_leg_;
@@ -371,6 +371,8 @@ namespace hebi {
       auto base_frame = legs_[i] -> getBaseFrame();
       Eigen::Vector4d tmp4(0.35, 0, 0, 0); // hard code first
       Eigen::VectorXd home_stance_xyz = (base_frame * tmp4).topLeftCorner<3,1>();
+      Eigen::Vector3d tmp3(0.07, 0, 0);
+      home_stance_xyz = home_stance_xyz + tmp3;
       legs_[i]->computeIK(goal, home_stance_xyz);
       int leg_offset = i * num_joints_per_leg_;
       cmd_[leg_offset + 0].actuator().position().set(goal(0));
@@ -402,7 +404,7 @@ namespace hebi {
     here the function does not actually use virtual leg placement strategy yet because we not yet have 
     body velocity measurement, let me work out a open loop gait first
   */
-  void Quadruped::runTest(SwingMode mode, double curr_time)
+  void Quadruped::runTest(SwingMode mode, double curr_time, double total_time)
   {
     Eigen::VectorXd goal;
     Eigen::Vector3d gravity_vec = getGravityDirection() * 9.8f;
@@ -412,6 +414,8 @@ namespace hebi {
       auto base_frame = legs_[i] -> getBaseFrame();
       Eigen::Vector4d tmp4(0.35, 0, 0, 0); // hard code first
       Eigen::VectorXd home_stance_xyz = (base_frame * tmp4).topLeftCorner<3,1>();
+      Eigen::Vector3d tmp3(0.07, 0, 0);
+      home_stance_xyz = home_stance_xyz + tmp3;
       legs_[i]->computeIK(goal, home_stance_xyz);
       int leg_offset = i * num_joints_per_leg_;
       cmd_[leg_offset + 0].actuator().position().set(goal(0));
@@ -464,7 +468,9 @@ namespace hebi {
       // swing leg does not compensate foot force
       // if (i == 0 && swing_vleg[0] == 0)
       // {
-      foot_force = 0.1* -gravity_direction_ * weight_;
+      double normed_time = curr_time/total_time;
+      double coefficient = -2*normed_time*normed_time + 2* normed_time +0.5;
+      foot_force = (-0.25*0 + 0.2)* -gravity_direction_ * weight_;
       // }
       //Eigen::Vector3d vels(0,0,0);
       Eigen::Vector3d torques = legs_[swing_vleg[i]]-> computeCompensateTorques(traj_angles, traj_vels, gravity_vec, foot_force); 
@@ -474,6 +480,7 @@ namespace hebi {
       cmd_[leg_offset + 2].actuator().effort().set(torques(2));
     }
     // for stance leg
+    // first calcuate foot force distribution
     for (int i = 0; i<2;i++)
     {
       Eigen::VectorXd traj_angles(3);
@@ -495,7 +502,10 @@ namespace hebi {
       cmd_[leg_offset + 2].actuator().position().set(traj_angles(2));
 
       
-      Eigen::Vector3d foot_force = 0.20* -gravity_direction_ * weight_;
+      // during a swing, change foot force distribution and ratio for stance leg
+      double normed_time = curr_time/total_time;
+      double coefficient = -2*normed_time*normed_time + 2* normed_time +0.5;
+      Eigen::Vector3d foot_force = 0.0* -gravity_direction_ * weight_;
       Eigen::Vector3d torques = legs_[stance_vleg[i]]-> computeCompensateTorques(traj_angles, traj_vels, gravity_vec, foot_force); 
 
       cmd_[leg_offset + 0].actuator().effort().set(torques(0));
@@ -529,11 +539,14 @@ namespace hebi {
     swing_trajectories.clear();
     for (int i = 0; i<2;i++)
     {
-      Eigen::VectorXd start_leg_angles = legs_[swing_vleg[i]] -> getJointAngle();
-      // 12-9 before left, have a plan for 12-10
-      // need to read HexapodView2D tomorrow
-      // test if getFK is also world frame, caclulate FK use this angle, see if it agree with base*tmp4 before
+      // Eigen::VectorXd start_leg_angles = legs_[swing_vleg[i]] -> getJointAngle();
+      Eigen::VectorXd start_leg_angles;
+      auto base_frame = legs_[swing_vleg[i]] -> getBaseFrame();
+      Eigen::Vector4d tmp4(0.45, 0, -0.28, 0); // hard code first
+      Eigen::VectorXd home_stance_xyz = (base_frame * tmp4).topLeftCorner<3,1>();
       
+      legs_[swing_vleg[i]] -> computeIK(start_leg_angles, home_stance_xyz);
+
       hebi::robot_model::Matrix4dVector frames;
       // endeffector only one frame, take me very long time to figure out this frame thing
       // all FKs are represented in base frame, here the "frametype" essentially means point of interets
@@ -544,12 +557,12 @@ namespace hebi {
       std::cout << "start_leg_ee_xyz is " << start_leg_ee_xyz(0) << " " 
                                          << start_leg_ee_xyz(1) << " "
                                          << start_leg_ee_xyz(2) <<std::endl; 
-      Eigen::VectorXd mid_leg_ee_xyz = start_leg_ee_xyz + Eigen::Vector3d(0.00,0.0,0.13);
+      Eigen::VectorXd mid_leg_ee_xyz = start_leg_ee_xyz + Eigen::Vector3d(0.05,0.0,0.08);
 
       std::cout << "mid_leg_ee_xyz is " << mid_leg_ee_xyz(0) << " " 
                                          << mid_leg_ee_xyz(1) << " "
                                          << mid_leg_ee_xyz(2) <<std::endl; 
-      Eigen::VectorXd end_leg_ee_xyz = start_leg_ee_xyz + Eigen::Vector3d(0.00,0.0,0.0);
+      Eigen::VectorXd end_leg_ee_xyz = start_leg_ee_xyz + Eigen::Vector3d(0.10,0.0,0.0);
       std::cout << "end_leg_ee_xyz is " << end_leg_ee_xyz(0) << " " 
                                          << end_leg_ee_xyz(1) << " "
                                          << end_leg_ee_xyz(2) <<std::endl; 
@@ -598,12 +611,13 @@ namespace hebi {
     stance_trajectories.clear();
     for (int i = 0; i<2;i++)
     {
-      Eigen::VectorXd start_leg_angles;
+      //Eigen::VectorXd start_leg_angles;
       auto base_frame = legs_[stance_vleg[i]] -> getBaseFrame();
-      Eigen::Vector4d tmp4(0.55, 0, -0.31, 0); // hard code first
+      Eigen::Vector4d tmp4(0.45, 0, -0.28, 0); // hard code first
       Eigen::VectorXd home_stance_xyz = (base_frame * tmp4).topLeftCorner<3,1>();
-      //Eigen::VectorXd start_leg_angles = legs_[stance_vleg[i]] -> getJointAngle();
-      legs_[stance_vleg[i]]->computeIK(start_leg_angles, home_stance_xyz);
+
+      Eigen::VectorXd start_leg_angles = legs_[stance_vleg[i]] -> getJointAngle();
+      //legs_[stance_vleg[i]]->computeIK(start_leg_angles, home_stance_xyz);
       // 12-9 before left, have a plan for 12-10
       // need to read HexapodView2D tomorrow
       // test if getFK is also world frame, caclulate FK use this angle, see if it agree with base*tmp4 before
@@ -611,11 +625,14 @@ namespace hebi {
       hebi::robot_model::Matrix4dVector frames;
       // endeffector only one frame
       legs_[stance_vleg[i]] -> getKinematics().getFK(HebiFrameTypeEndEffector, start_leg_angles, frames); // I assume this is in the frame of base frame
-      Eigen::Vector3d start_leg_ee_xyz = frames[0].topRightCorner<3,1>();  // make sure this is in com frame
-      Eigen::VectorXd mid_leg_ee_xyz = start_leg_ee_xyz + Eigen::Vector3d(-0.00,0.0,0.0);
-      Eigen::VectorXd end_leg_ee_xyz = start_leg_ee_xyz + Eigen::Vector3d(-0.00,0.0,0.0);
+      Eigen::VectorXd start_leg_ee_xyz = frames[0].topRightCorner<3,1>();  // make sure this is in com frame
+      //Eigen::VectorXd mid_leg_ee_xyz = start_leg_ee_xyz + Eigen::Vector3d(-0.00,0.0,0.0);
+      Eigen::VectorXd mid_leg_ee_xyz = 0.5*start_leg_ee_xyz + 0.5*home_stance_xyz+ Eigen::Vector3d(0.0,0.0,-0.01);
+      //Eigen::VectorXd end_leg_ee_xyz = start_leg_ee_xyz + Eigen::Vector3d(-0.00,0.0,0.0);
+      Eigen::VectorXd end_leg_ee_xyz = home_stance_xyz;
       Eigen::VectorXd mid_leg_angles;
       Eigen::VectorXd end_leg_angles;
+      //legs_[stance_vleg[i]] -> computeIK(start_leg_angles, start_leg_ee_xyz);
       legs_[stance_vleg[i]] -> computeIK(mid_leg_angles, mid_leg_ee_xyz);
       legs_[stance_vleg[i]] -> computeIK(end_leg_angles, end_leg_ee_xyz);
 

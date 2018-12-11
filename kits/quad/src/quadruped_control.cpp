@@ -89,7 +89,7 @@ int main(int argc, char** argv)
       // variables init
       Eigen::Vector3d grav_vec;
       Eigen::VectorXd leg_angles;
-      double leg_swing_time = 0.7;   // need to be tested 
+      double leg_swing_time = 0.5;   // need to be tested 
       bool isFinished;
       // Wait!
       auto now_time = std::chrono::steady_clock::now();
@@ -190,7 +190,7 @@ int main(int argc, char** argv)
           //                            << leg_angles(1) << " "
           //                            << leg_angles(2) << std::endl;
 
-          quadruped -> runTest(Quadruped::SwingMode::swing_mode_virtualLeg1, state_run_time.count());
+          quadruped -> runTest(Quadruped::SwingMode::swing_mode_virtualLeg1, state_run_time.count(), leg_swing_time);
           if (state_run_time.count() >= leg_swing_time)
           {
             cur_ctrl_state = QUAD_CTRL_NORMAL_RIGHT;
@@ -204,7 +204,7 @@ int main(int argc, char** argv)
           state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
 
 
-          quadruped -> runTest(Quadruped::SwingMode::swing_mode_virtualLeg2, state_run_time.count());
+          quadruped -> runTest(Quadruped::SwingMode::swing_mode_virtualLeg2, state_run_time.count(), leg_swing_time);
           if (state_run_time.count() >= leg_swing_time)
           {
             cur_ctrl_state = QUAD_CTRL_NORMAL_LEFT;

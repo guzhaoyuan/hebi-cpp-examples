@@ -65,7 +65,7 @@ class Quadruped
     bool spreadAllLegs();
     bool pushAllLegs();
     bool prepareQuadMode();
-    void runTest(SwingMode mode, double curr_time);
+    void runTest(SwingMode mode, double curr_time, double total_time);
     void prepareTrajectories(SwingMode mode, double leg_swing_time);
 
 
