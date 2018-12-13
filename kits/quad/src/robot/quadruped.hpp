@@ -63,7 +63,7 @@ class Quadruped
     bool planStandUpTraj(double duration_time);
     bool execStandUpTraj(double curr_time);
     bool spreadAllLegs();
-    bool pushAllLegs();
+    bool pushAllLegs(double curr_time, double total_time);
     bool prepareQuadMode();
     void runTest(SwingMode mode, double curr_time, double total_time);
     void prepareTrajectories(SwingMode mode, double leg_swing_time);
@@ -76,6 +76,7 @@ class Quadruped
 
     void setCommand(int index, const VectorXd* angles, const VectorXd* vels, const VectorXd* torques);
     void sendCommand();
+    bool setGains();
 
   private:
     // private constructor, it make sense because before construct must make sure group is successfully created

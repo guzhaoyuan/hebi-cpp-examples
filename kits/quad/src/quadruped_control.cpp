@@ -30,17 +30,17 @@ enum ctrl_state_type {
   CTRL_STATES_COUNT
 };
 // state transition variables
-double startup_seconds = 1.8;
+double startup_seconds = 1.9;
 
 int main(int argc, char** argv)
 {
-  // hexapod initially start some Qt object, it seems it is just used as
+  // hexapod initially start some Qt object, it seems it is just used as viewer, so I deleted them
   QApplication app(argc, argv);
 
   // INIT VARS
   bool is_quiet{}; // test where some steps go run or not
 
-  // INIT STEP 1: init parameters (use default parameters)
+  // INIT STEP 1: init parameters (it is empty now, not used)
   QuadrupedParameters params;
   params.resetToDefaults();
 
@@ -49,7 +49,7 @@ int main(int argc, char** argv)
   if (!is_quiet && !input->isConnected())
   {
       std::cout << "Could not find input joystick." << std::endl;
-      return 1;
+      //return 1;   // if do not need mobile IO joy stick, comment this
   }
   // ------------ Retry a "reset" multiple times! Wait for this in a loop.
   while (is_quiet && !input->isConnected())
@@ -60,6 +60,7 @@ int main(int argc, char** argv)
   std::cout << "Found input joystick -- starting control program.\n";
   // INIT STEP 3: init robot planner
   std::unique_ptr<Quadruped> quadruped = Quadruped::create(params);
+  quadruped -> setGains();
 
   // INIT STEP FINAL: start control state machine
   // input command from joystick (hebi's input manager use vector3f, i think use vector3d would be better)
@@ -88,6 +89,13 @@ int main(int argc, char** argv)
     // Get dt (in seconds)
     std::chrono::duration<double> dt = std::chrono::seconds(0);
 
+
+    // variables used in normal run test
+    Eigen::Vector3d grav_vec;
+    Eigen::VectorXd leg_angles;
+    double leg_swing_time = 0.5;   // need to be tested 
+    bool isFinished;
+    // some variables used in state passive_orient
     Eigen::Matrix3d bodyR, balance_body_R, diff_body_R;
     Eigen::Vector3d euler;
     Eigen::Quaterniond q_error;
@@ -97,11 +105,6 @@ int main(int argc, char** argv)
     Eigen::Vector3d axis_aa;
     while (control_execute.load(std::memory_order_acquire))
     {    
-      // variables init
-      Eigen::Vector3d grav_vec;
-      Eigen::VectorXd leg_angles;
-      double leg_swing_time = 0.5;   // need to be tested 
-      bool isFinished;
       // Wait!
       auto now_time = std::chrono::steady_clock::now();
       auto need_to_wait = std::max(0, (int)std::chrono::duration_cast<std::chrono::milliseconds>(prev_time + std::chrono::milliseconds(interval_ms) - now_time).count());
@@ -123,7 +126,8 @@ int main(int argc, char** argv)
       translation_velocity_cmd = input->getTranslationVelocityCmd();
       rotation_velocity_cmd = input->getRotationVelocityCmd();
       Eigen::Matrix3d target_body_R;
-      // control state machine (do not put actual execution logic here)
+      
+      // control state machine 
       // std::cout << "|Time: " << elapsed_time.count() <<  "| my current state is: " << cur_ctrl_state <<std::endl;
       switch (cur_ctrl_state)
       {
@@ -167,7 +171,7 @@ int main(int argc, char** argv)
           state_curr_time = std::chrono::steady_clock::now();
           state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
 
-          isFinished = quadruped -> pushAllLegs();
+          isFinished = quadruped -> pushAllLegs(state_run_time.count(), startup_seconds);
           if (state_run_time.count() >= startup_seconds)
           {
             quadruped -> startBodyRUpdate();
@@ -182,18 +186,20 @@ int main(int argc, char** argv)
           isFinished = quadruped -> prepareQuadMode();
           if (state_run_time.count() >= startup_seconds)
           {
+            // the entry to some final state, either running or rotating
             cur_ctrl_state = QUAD_CTRL_PASSIVE_ORIENT;
             balance_body_R = quadruped -> getBodyR();
             state_enter_time = std::chrono::steady_clock::now(); 
-            quadruped -> prepareTrajectories(Quadruped::SwingMode::swing_mode_virtualLeg1, leg_swing_time);
+            //quadruped -> prepareTrajectories(Quadruped::SwingMode::swing_mode_virtualLeg1, leg_swing_time);
           }
           break;
 
+        // normal left and normal right is not working now (12-10)
         case QUAD_CTRL_NORMAL_LEFT:
           state_curr_time = std::chrono::steady_clock::now();
           state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
 
-          // some debug print to show so far all implementation is correct
+          // some debug print to show so far all implementation in quadruped is correct
           // grav_vec = quadruped -> getGravityDirection();
           // std::cout << "Gravity Direction: " << grav_vec(0) << " "
           //                                    << grav_vec(1) << " "
@@ -227,6 +233,7 @@ int main(int argc, char** argv)
           
           break;
 
+        // in this state, robot changes it orientation according to external input
         case QUAD_CTRL_ORIENT:
           state_curr_time = std::chrono::steady_clock::now();
           state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
@@ -240,45 +247,21 @@ int main(int argc, char** argv)
           quadruped -> reOrient(target_body_R);
           // will stay in this state
           break;
+        
+        // in this state, robot passively keep its body balanced
         case QUAD_CTRL_PASSIVE_ORIENT:
           state_curr_time = std::chrono::steady_clock::now();
           state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
           quadruped -> startBodyRUpdate();
           bodyR = quadruped -> getBodyR();
           diff_body_R = balance_body_R* bodyR.transpose() ;
-          // euler = diff_body_R.eulerAngles(0,2,1);
-          // if (abs(euler(1)) < 5/180.0f*M_PI)
-          //   euler(1) = 0;
-          // if (abs(euler(2)) < 5/180.0f*M_PI)
-          //   euler(2) = 0;
-          // q_error = Eigen::Quaterniond(diff_body_R);
-          // euler = q_error.toRotationMatrix().eulerAngles(0,2,1);
-          // control_R = control_R*diff_body_R;
-          tmp_aa = Eigen::AngleAxisd(diff_body_R);
-          tmp_aa.angle() = 0.03* tmp_aa.angle();
-          axis_aa = tmp_aa.axis();
-          control_R = control_R*tmp_aa.toRotationMatrix();
-          
-          // if (euler(1) > 20/180.0f*M_PI)
-          //   euler(1) = 20/180.0f*M_PI;
-          // else if (euler(1) < -20/180.0f*M_PI)
-          //   euler(1) = -20/180.0f*M_PI;
-          // if (euler(2) > 20/180.0f*M_PI)
-          //   euler(2) = 20/180.0f*M_PI;
-          // else if (euler(2) < -20/180.0f*M_PI)
-          //   euler(2) = -20/180.0f*M_PI;
 
-          //std::cout <<  input->getRightVertRaw() << " - "<< input->getLeftVertRaw() << std::endl;
-          // test body rotate, first just give some random target angles
-          // std::cout << "error _euler: " << euler(0) << " "
-          //                              << euler(1) << " "
-          //                              << euler(2) << 
-          //                              std::endl;
-          // target_body_R = Eigen::AngleAxisd(0.0f/180.0f*M_PI, Eigen::Vector3d::UnitX()) *
-          //                 Eigen::AngleAxisd(0, Eigen::Vector3d::UnitY()) *
-          //                 Eigen::AngleAxisd(0, Eigen::Vector3d::UnitZ());
-          target_body_R = bodyR*diff_body_R.transpose();
-          quadruped -> reOrient(control_R);
+          tmp_aa = Eigen::AngleAxisd(diff_body_R);
+          tmp_aa.angle() = 0.031* tmp_aa.angle(); // reduced difference
+          axis_aa = tmp_aa.axis();
+          control_R = control_R*tmp_aa.toRotationMatrix(); // error integration
+
+          quadruped -> reOrient(control_R); // control orientation using error
           // will stay in this state
           break;
 

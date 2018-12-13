@@ -45,7 +45,7 @@ namespace hebi {
     legs_.emplace_back(new QuadLeg(-150.0 * M_PI / 180.0, 0.2375, zero_vec, params, 5, QuadLeg::LegConfiguration::Right));
 
 
-    Eigen::Vector4d base_stance_ee_xyz = Eigen::Vector4d(0.36, 0, -0.33, 0); // expressed in base motor's frame
+    base_stance_ee_xyz = Eigen::Vector4d(0.36f, 0.0f, -0.31f, 0); // expressed in base motor's frame
 
     // This looks like black magic to me
     if (group_)
@@ -64,14 +64,8 @@ namespace hebi {
         std::lock_guard<std::mutex> guard(fbk_lock_);
         latest_fbk_time = std::chrono::steady_clock::now();
         assert(fbk.size() == num_joints_);
-        // a easier way to transform vectors between frame is use this avearge method
-        // get an average rotation by spherical average buss2001
         
-        Eigen::Quaterniond average_q;
-        average_q.w() = 0;
-        average_q.x() = 0;
-        average_q.y() = 0;
-        average_q.z() = 0;
+        // average all euler angle from 6 IMUs to get a better estimation
         Eigen::Vector3d single_euler;
         Eigen::Vector3d average_euler;
         std::vector<Eigen::Quaterniond> q_list;
@@ -84,6 +78,7 @@ namespace hebi {
         if (updateBodyR) // this only be activated when system goes to third state, so the outside planner will 
                          // call startUpdateBodyR to enable this flag to let the system start to update body R estimation
         {
+          // record initial rotations, so later we only calculate relation rotations as body rotation
           if (!first_rotation)
           {
             for (int i = 0; i < num_legs_; ++i)
@@ -120,22 +115,14 @@ namespace hebi {
                 mod_orientation.getX(),
                 mod_orientation.getY(),
                 mod_orientation.getZ());
-              // I found that this rotation matrix is nasty, they have different direction of rotation
-              // I need to convert them into angle axis, and convert all direction of axis to the same direction
+                
               Eigen::Matrix3d mod_orientation_mat = init_rotation[i].transpose() * mod_orientation_eig.toRotationMatrix();
+              // transform rotation axis to com of the robot
               Eigen::AngleAxisd tmp_aa = Eigen::AngleAxisd(mod_orientation_mat);
               double new_angle = tmp_aa.angle();
               Eigen::Vector3d axis_aa = tmp_aa.axis();
               axis_aa = trans_mat*axis_aa;
-              // if (axis_aa.dot(Eigen::Vector3d(0,0,1)) < 0)
-              // {
-              //   new_angle = M_PI-tmp_aa.angle();
-              //   axis_aa = -axis_aa;
-              // }
-              // else
-              // {
-              //   new_angle = tmp_aa.angle();
-              // }
+              
 
               // std::cout << "mod_orientation_mat aa  " << tmp_aa.angle() << " "
               //                                       << axis_aa(0) << " "
@@ -145,9 +132,10 @@ namespace hebi {
               Eigen::AngleAxisd tmp_aa_after = Eigen::AngleAxisd(new_angle, axis_aa);
               mod_orientation_mat = tmp_aa_after.toRotationMatrix();
               
-              //mod_orientation_mat = mod_orientation_mat*trans_mat.transpose();
               single_euler = mod_orientation_mat.eulerAngles(2,1,0);
-              body_R = mod_orientation_mat;
+              
+              body_R = mod_orientation_mat; // comment this, then uncomment  168-170 to get average rotation
+              
               //std::cout << "mod_orientation_mat" << mod_orientation_mat << std::endl;
               // std::cout << "single _euler: " << single_euler(0) << " "
               //                          << single_euler(1) << " "
@@ -159,12 +147,6 @@ namespace hebi {
                 valid_fbk += 1;
               }
                 
-              // Eigen::Quaterniond converted = Eigen::Quaterniond(mod_orientation_mat);
-              // average_q.w() += converted.w();
-              // average_q.x() += converted.x();
-              // average_q.y() += converted.y();
-              // average_q.z() += converted.z();
-              // q_list.push_back(converted);
 
               // Transform
               Eigen::Vector3d my_grav = trans.topLeftCorner<3,3>() * mod_orientation_mat.transpose() * down;
@@ -175,15 +157,7 @@ namespace hebi {
             // std::cout << "average_euler: " << average_euler(0) << " "
             //                            << average_euler(1) << " "
             //                            << average_euler(2) << std::endl;
-            // average_q.w() /= num_legs_;
-            // average_q.x() /= num_legs_;
-            // average_q.y() /= num_legs_;
-            // average_q.z() /= num_legs_;
-            // // this is buss 2001
-            // average_q.normalize();
-            // Eigen::Quaterniond real_average_q = average_quat(average_q, q_list);
-            // auto average_euler = real_average_q.toRotationMatrix().eulerAngles(2,1,0);
-            //average_euler = average_euler/valid_fbk;
+
             average_euler(0) = average_euler(0)/valid_fbk;
             average_euler(1) = average_euler(1)/valid_fbk;
             average_euler(2) = average_euler(2)/valid_fbk;
@@ -194,11 +168,6 @@ namespace hebi {
             // body_R = Eigen::AngleAxisd(average_euler(0), Eigen::Vector3d::UnitZ()) *
             //         Eigen::AngleAxisd(average_euler(1), Eigen::Vector3d::UnitY()) *
             //         Eigen::AngleAxisd(average_euler(2), Eigen::Vector3d::UnitX());
-
-            // average_euler = body_R.eulerAngles(2,1,0);
-            // std::cout << "average euler: " << average_euler(0) << " "
-            //                           << average_euler(1) << " "
-            //                           << average_euler(2) <<  std::endl;
 
             // Average the feedback from various modules and normalize.
             avg_grav.normalize();
@@ -264,8 +233,7 @@ namespace hebi {
       
 
       auto base_frame = legs_[i] -> getBaseFrame();
-      Eigen::Vector4d tmp4(0.45, 0, -0.28, 0); // hard code first
-      Eigen::VectorXd home_stance_xyz = (base_frame * tmp4).topLeftCorner<3,1>();
+      Eigen::VectorXd home_stance_xyz = (base_frame * base_stance_ee_xyz).topLeftCorner<3,1>();
       legs_[i]->computeIK(leg_end, home_stance_xyz);
       // TODO: fix! (quick and dirty -- leg mid is hardcoded as offset from leg end)
       Eigen::VectorXd leg_mid = leg_end;
@@ -344,8 +312,7 @@ namespace hebi {
     for (int i = 0; i < 6; ++i)
     {
       auto base_frame = legs_[i] -> getBaseFrame();
-      Eigen::Vector4d tmp4(0.45, 0, -0.28, 0); // hard code first
-      Eigen::VectorXd home_stance_xyz = (base_frame * tmp4).topLeftCorner<3,1>();
+      Eigen::VectorXd home_stance_xyz = (base_frame * base_stance_ee_xyz).topLeftCorner<3,1>();
       Eigen::Vector3d stance = home_stance_xyz;
       double dot_prod = grav.dot(stance);
       factors(i) = (grav * dot_prod - stance).norm();
@@ -412,6 +379,7 @@ namespace hebi {
       auto base_frame = legs_[i] -> getBaseFrame();
       Eigen::Vector4d tmp4(0.55, 0, 0.05, 0); // hard code first
       Eigen::VectorXd home_stance_xyz = (base_frame * tmp4).topLeftCorner<3,1>();
+      
       legs_[i]->computeIK(goal, home_stance_xyz);
       int leg_offset = i * num_joints_per_leg_;
       cmd_[leg_offset + 0].actuator().position().set(goal(0));
@@ -434,23 +402,33 @@ namespace hebi {
     return isReaching;
   }
 
-  bool Quadruped::pushAllLegs()
+  bool Quadruped::pushAllLegs(double curr_time, double total_time)
   {
     bool isReaching = true;
     is_exec_traj = true;
     Eigen::VectorXd goal;
+    Eigen::Vector3d gravity_vec = getGravityDirection() * 9.8f;
 
     // set command angle 
     for (int i = 0; i < num_legs_; ++i)
     {
       auto base_frame = legs_[i] -> getBaseFrame();
-      Eigen::Vector4d tmp4(0.45, 0, -0.28, 0); // hard code first
-      Eigen::VectorXd home_stance_xyz = (base_frame * tmp4).topLeftCorner<3,1>();
+      Eigen::VectorXd home_stance_xyz = (base_frame * base_stance_ee_xyz).topLeftCorner<3,1>();
       legs_[i]->computeIK(goal, home_stance_xyz);
       int leg_offset = i * num_joints_per_leg_;
       cmd_[leg_offset + 0].actuator().position().set(goal(0));
       cmd_[leg_offset + 1].actuator().position().set(goal(1));
       cmd_[leg_offset + 2].actuator().position().set(goal(2));
+   
+      Eigen::Vector3d vels(0,0,0);
+      // locally compensate foot force, need a dedicated function later
+      Eigen::Vector3d foot_force = curr_time/total_time* 1.0f / 6.0f * -gravity_direction_ * weight_;
+      Eigen::Vector3d torques = legs_[i]-> computeCompensateTorques(goal, vels, gravity_vec, foot_force); 
+
+      cmd_[leg_offset + 0].actuator().effort().set(torques(0));
+      cmd_[leg_offset + 1].actuator().effort().set(torques(1));
+      cmd_[leg_offset + 2].actuator().effort().set(torques(2));
+
     }
 
     sendCommand();
@@ -472,8 +450,7 @@ namespace hebi {
     {
       // TODO: consider this as 
       auto base_frame = legs_[i] -> getBaseFrame();
-      Eigen::Vector4d tmp4(0.45, 0, -0.28, 0); // hard code first
-      Eigen::VectorXd home_stance_xyz = (base_frame * tmp4).topLeftCorner<3,1>();
+      Eigen::VectorXd home_stance_xyz = (base_frame * base_stance_ee_xyz).topLeftCorner<3,1>();
       legs_[i]->computeIK(goal, home_stance_xyz);
       int leg_offset = i * num_joints_per_leg_;
       cmd_[leg_offset + 0].actuator().position().set(goal(0));
@@ -665,8 +642,7 @@ namespace hebi {
       // Eigen::VectorXd start_leg_angles = legs_[swing_vleg[i]] -> getJointAngle();
       Eigen::VectorXd start_leg_angles;
       auto base_frame = legs_[swing_vleg[i]] -> getBaseFrame();
-      Eigen::Vector4d tmp4(0.45, 0, -0.28, 0); // hard code first
-      Eigen::VectorXd home_stance_xyz = (base_frame * tmp4).topLeftCorner<3,1>();
+      Eigen::VectorXd home_stance_xyz = (base_frame * base_stance_ee_xyz).topLeftCorner<3,1>();
       
       legs_[swing_vleg[i]] -> computeIK(start_leg_angles, home_stance_xyz);
 
@@ -736,8 +712,7 @@ namespace hebi {
     {
       //Eigen::VectorXd start_leg_angles;
       auto base_frame = legs_[stance_vleg[i]] -> getBaseFrame();
-      Eigen::Vector4d tmp4(0.45, 0, -0.28, 0); // hard code first
-      Eigen::VectorXd home_stance_xyz = (base_frame * tmp4).topLeftCorner<3,1>();
+      Eigen::VectorXd home_stance_xyz = (base_frame * base_stance_ee_xyz).topLeftCorner<3,1>();
 
       Eigen::VectorXd start_leg_angles = legs_[stance_vleg[i]] -> getJointAngle();
       //legs_[stance_vleg[i]]->computeIK(start_leg_angles, home_stance_xyz);
@@ -805,7 +780,7 @@ namespace hebi {
       cmd_[leg_offset + 1].actuator().position().set(goal(1));
       cmd_[leg_offset + 2].actuator().position().set(goal(2));
     }
-    std::cout << "ready to get leg angles" << std::endl;
+    // std::cout << "ready to get leg angles" << std::endl;
 
     // id of legs            and bar positions, to save some space
     int support_vleg[4];    double bar_x_list[4], bar_y_list[4];
@@ -876,7 +851,19 @@ namespace hebi {
       group_->sendCommand(cmd_);
   }
 
-  // private individual function
+  bool Quadruped::setGains()
+  {
+    if (!group_)
+      return true;
+
+    hebi::GroupCommand gains(group_->size());
+    std::string gains_file = std::string("quad_gains") + std::to_string(group_->size()) + ".xml";
+    std::cout << "Loading gains from: " << gains_file << std::endl;
+    bool success = gains.readGains(gains_file);
+    return success && group_->sendCommandWithAcknowledgement(gains, 4000);
+  }
+
+  // private individual function, calcuate average of quaternions, but not correct yet
   Eigen::Quaterniond Quadruped::average_quat(Eigen::Quaterniond average_q_, std::vector<Eigen::Quaterniond> q_list_)
   {
     int q_list_size = q_list_.size(); // should be 6
