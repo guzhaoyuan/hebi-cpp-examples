@@ -45,7 +45,7 @@ namespace hebi {
     legs_.emplace_back(new QuadLeg(-150.0 * M_PI / 180.0, 0.2375, zero_vec, params, 5, QuadLeg::LegConfiguration::Right));
 
 
-    Eigen::Vector4d base_stance_ee_xyz = Eigen::Vector4d(0.45, 0, -0.28, 0); // expressed in base motor's frame
+    Eigen::Vector4d base_stance_ee_xyz = Eigen::Vector4d(0.36, 0, -0.33, 0); // expressed in base motor's frame
 
     // This looks like black magic to me
     if (group_)
@@ -147,7 +147,7 @@ namespace hebi {
               
               //mod_orientation_mat = mod_orientation_mat*trans_mat.transpose();
               single_euler = mod_orientation_mat.eulerAngles(2,1,0);
-
+              body_R = mod_orientation_mat;
               //std::cout << "mod_orientation_mat" << mod_orientation_mat << std::endl;
               // std::cout << "single _euler: " << single_euler(0) << " "
               //                          << single_euler(1) << " "
@@ -191,11 +191,11 @@ namespace hebi {
             //                           << average_euler(1) << " "
             //                           << average_euler(2) <<  std::endl;
 
-            body_R = Eigen::AngleAxisd(average_euler(0), Eigen::Vector3d::UnitZ()) *
-                    Eigen::AngleAxisd(average_euler(1), Eigen::Vector3d::UnitY()) *
-                    Eigen::AngleAxisd(average_euler(2), Eigen::Vector3d::UnitX());
+            // body_R = Eigen::AngleAxisd(average_euler(0), Eigen::Vector3d::UnitZ()) *
+            //         Eigen::AngleAxisd(average_euler(1), Eigen::Vector3d::UnitY()) *
+            //         Eigen::AngleAxisd(average_euler(2), Eigen::Vector3d::UnitX());
 
-            average_euler = body_R.eulerAngles(2,1,0);
+            // average_euler = body_R.eulerAngles(2,1,0);
             // std::cout << "average euler: " << average_euler(0) << " "
             //                           << average_euler(1) << " "
             //                           << average_euler(2) <<  std::endl;
@@ -825,13 +825,20 @@ namespace hebi {
 
     for (int i = 0; i<num_locomote_legs_;i++)
     {
+
+      // some of my ugly notations...
+      // frame definitions: 
+      // e is earth frame or ground frame
+      // b is base motor frame
+      // c is the frame at CoM of the robot
+      // f is the foot frame 
+      
       int leg_offset = support_vleg[i] * num_joints_per_leg_;
       auto base_frame = legs_[support_vleg[i]] -> getBaseFrame();
       Eigen::MatrixXd R_cb = base_frame.topLeftCorner<3,3>();
       Eigen::VectorXd p_cb = base_frame.topRightCorner<3,1>();
       // std::cout << p_cb << std::endl;
       Eigen::VectorXd p_eb = R_ec*p_cb;
-      // some of my ugly notations...
       Eigen::Vector3d p_ef(foot_bar_x_list[i],foot_bar_y_list[i],0);
       Eigen::VectorXd p_e = p_ef - p_ec - p_eb;
       Eigen::MatrixXd R_eb = R_ec*R_cb;
@@ -840,9 +847,9 @@ namespace hebi {
       // solve IK to get leg pose
       legs_[support_vleg[i]]->computeIK(goal, p_e);
       
-      std::cout << "pose for leg " << support_vleg[i] << " :" << p_e(0) << " "
-                                << p_e(1) << " "
-                                << p_e(2) <<  std::endl;
+      // std::cout << "pose for leg " << support_vleg[i] << " :" << p_e(0) << " "
+      //                           << p_e(1) << " "
+      //                           << p_e(2) <<  std::endl;
 
       cmd_[leg_offset + 0].actuator().position().set(goal(0));
       cmd_[leg_offset + 1].actuator().position().set(goal(1));

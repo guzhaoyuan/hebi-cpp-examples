@@ -69,6 +69,7 @@ class Quadruped
     void prepareTrajectories(SwingMode mode, double leg_swing_time);
     bool reOrient(Matrix3d target_body_R);
 
+    Eigen::Matrix3d getBodyR() {return body_R;}
     void startBodyRUpdate() {updateBodyR = true;}
 
     bool isExecution() {return is_exec_traj;}

@@ -26,6 +26,7 @@ enum ctrl_state_type {
   QUAD_CTRL_NORMAL_LEFT,
   QUAD_CTRL_NORMAL_RIGHT,
   QUAD_CTRL_ORIENT,
+  QUAD_CTRL_PASSIVE_ORIENT,
   CTRL_STATES_COUNT
 };
 // state transition variables
@@ -86,6 +87,14 @@ int main(int argc, char** argv)
     auto prev_time = std::chrono::steady_clock::now();
     // Get dt (in seconds)
     std::chrono::duration<double> dt = std::chrono::seconds(0);
+
+    Eigen::Matrix3d bodyR, balance_body_R, diff_body_R;
+    Eigen::Vector3d euler;
+    Eigen::Quaterniond q_error;
+    Eigen::Matrix3d control_R = Eigen::Matrix3d::Identity();
+    Eigen::AngleAxisd tmp_aa;
+    double new_angle;
+    Eigen::Vector3d axis_aa;
     while (control_execute.load(std::memory_order_acquire))
     {    
       // variables init
@@ -161,6 +170,7 @@ int main(int argc, char** argv)
           isFinished = quadruped -> pushAllLegs();
           if (state_run_time.count() >= startup_seconds)
           {
+            quadruped -> startBodyRUpdate();
             cur_ctrl_state = QUAD_CTRL_STAND_UP3;
             state_enter_time = std::chrono::steady_clock::now(); 
           }
@@ -172,7 +182,8 @@ int main(int argc, char** argv)
           isFinished = quadruped -> prepareQuadMode();
           if (state_run_time.count() >= startup_seconds)
           {
-            cur_ctrl_state = QUAD_CTRL_ORIENT;
+            cur_ctrl_state = QUAD_CTRL_PASSIVE_ORIENT;
+            balance_body_R = quadruped -> getBodyR();
             state_enter_time = std::chrono::steady_clock::now(); 
             quadruped -> prepareTrajectories(Quadruped::SwingMode::swing_mode_virtualLeg1, leg_swing_time);
           }
@@ -227,6 +238,47 @@ int main(int argc, char** argv)
                           Eigen::AngleAxisd(input->getRightVertRaw()*16.0f/180.0f*M_PI, Eigen::Vector3d::UnitY()) *
                           Eigen::AngleAxisd(input->getLeftVertRaw()*16.0f/180.0f*M_PI, Eigen::Vector3d::UnitX());
           quadruped -> reOrient(target_body_R);
+          // will stay in this state
+          break;
+        case QUAD_CTRL_PASSIVE_ORIENT:
+          state_curr_time = std::chrono::steady_clock::now();
+          state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
+          quadruped -> startBodyRUpdate();
+          bodyR = quadruped -> getBodyR();
+          diff_body_R = balance_body_R* bodyR.transpose() ;
+          // euler = diff_body_R.eulerAngles(0,2,1);
+          // if (abs(euler(1)) < 5/180.0f*M_PI)
+          //   euler(1) = 0;
+          // if (abs(euler(2)) < 5/180.0f*M_PI)
+          //   euler(2) = 0;
+          // q_error = Eigen::Quaterniond(diff_body_R);
+          // euler = q_error.toRotationMatrix().eulerAngles(0,2,1);
+          // control_R = control_R*diff_body_R;
+          tmp_aa = Eigen::AngleAxisd(diff_body_R);
+          tmp_aa.angle() = 0.03* tmp_aa.angle();
+          axis_aa = tmp_aa.axis();
+          control_R = control_R*tmp_aa.toRotationMatrix();
+          
+          // if (euler(1) > 20/180.0f*M_PI)
+          //   euler(1) = 20/180.0f*M_PI;
+          // else if (euler(1) < -20/180.0f*M_PI)
+          //   euler(1) = -20/180.0f*M_PI;
+          // if (euler(2) > 20/180.0f*M_PI)
+          //   euler(2) = 20/180.0f*M_PI;
+          // else if (euler(2) < -20/180.0f*M_PI)
+          //   euler(2) = -20/180.0f*M_PI;
+
+          //std::cout <<  input->getRightVertRaw() << " - "<< input->getLeftVertRaw() << std::endl;
+          // test body rotate, first just give some random target angles
+          // std::cout << "error _euler: " << euler(0) << " "
+          //                              << euler(1) << " "
+          //                              << euler(2) << 
+          //                              std::endl;
+          // target_body_R = Eigen::AngleAxisd(0.0f/180.0f*M_PI, Eigen::Vector3d::UnitX()) *
+          //                 Eigen::AngleAxisd(0, Eigen::Vector3d::UnitY()) *
+          //                 Eigen::AngleAxisd(0, Eigen::Vector3d::UnitZ());
+          target_body_R = bodyR*diff_body_R.transpose();
+          quadruped -> reOrient(control_R);
           // will stay in this state
           break;
 
