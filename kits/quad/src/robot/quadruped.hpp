@@ -67,6 +67,7 @@ class Quadruped
     bool prepareQuadMode();
     void runTest(SwingMode mode, double curr_time, double total_time);
     void prepareTrajectories(SwingMode mode, double leg_swing_time);
+    bool reOrient(Matrix3d target_body_R);
 
     void startBodyRUpdate() {updateBodyR = true;}
 
@@ -124,6 +125,18 @@ class Quadruped
     const int num_locomote_joints_ = num_locomote_legs_ * num_joints_per_leg_;
     const int num_manipulate_joints_ = num_manipulate_legs_ * num_joints_per_leg_;
     static constexpr double weight_ = 9.8f * 21.0f; // mass = 21 kg
+
+    // structural and stance constants to make system stand
+    // these bars need to be tuned
+    const double bar_y = 0.1187; // distance fromt com of the robot to motor 0, y direction
+    const double bar_x = 0.2057; // distance fromt com of the robot to motor 0, x direction
+    const double foot_bar_y = 0.1187 + 0.20; // distance fromt com of the robot to foot 0, y direction
+    const double foot_bar_x = 0.2057 + 0.34; // distance fromt com of the robot to foot 0, x direction
+    const double nominal_height_z = 0.3;
+
+
+    Eigen::Vector4d base_stance_ee_xyz; // expressed in base motor's frame
+    Eigen::Vector3d com_stance_ee_xyz;  // expressed in com of the robot's frame
 };
 
 } // namespace hebi

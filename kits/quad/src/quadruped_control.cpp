@@ -48,13 +48,13 @@ int main(int argc, char** argv)
   if (!is_quiet && !input->isConnected())
   {
       std::cout << "Could not find input joystick." << std::endl;
-      // return 1;
+      return 1;
   }
   // ------------ Retry a "reset" multiple times! Wait for this in a loop.
-  // while (is_quiet && !input->isConnected())
-  // {
-  //     static_cast<input::InputManagerMobileIO*>(input.get())->reset();
-  // }
+  while (is_quiet && !input->isConnected())
+  {
+      static_cast<input::InputManagerMobileIO*>(input.get())->reset();
+  }
 
   std::cout << "Found input joystick -- starting control program.\n";
   // INIT STEP 3: init robot planner
@@ -81,8 +81,8 @@ int main(int argc, char** argv)
   std::thread control_thread([&]()
   {
     // the main control thread
-    // ctrl_state_type cur_ctrl_state = QUAD_CTRL_STAND_UP1;
-    ctrl_state_type cur_ctrl_state = QUAD_CTRL_ORIENT;  // save some energy 
+    ctrl_state_type cur_ctrl_state = QUAD_CTRL_STAND_UP1;
+    // ctrl_state_type cur_ctrl_state = QUAD_CTRL_ORIENT;  // save some energy 
     auto prev_time = std::chrono::steady_clock::now();
     // Get dt (in seconds)
     std::chrono::duration<double> dt = std::chrono::seconds(0);
@@ -113,7 +113,7 @@ int main(int argc, char** argv)
       }
       translation_velocity_cmd = input->getTranslationVelocityCmd();
       rotation_velocity_cmd = input->getRotationVelocityCmd();
-
+      Eigen::Matrix3d target_body_R;
       // control state machine (do not put actual execution logic here)
       // std::cout << "|Time: " << elapsed_time.count() <<  "| my current state is: " << cur_ctrl_state <<std::endl;
       switch (cur_ctrl_state)
@@ -220,6 +220,13 @@ int main(int argc, char** argv)
           state_curr_time = std::chrono::steady_clock::now();
           state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
           quadruped -> startBodyRUpdate();
+
+          std::cout <<  input->getRightVertRaw() << " - "<< input->getLeftVertRaw() << std::endl;
+          // test body rotate, first just give some random target angles
+          target_body_R = Eigen::AngleAxisd(0.0f/180.0f*M_PI, Eigen::Vector3d::UnitZ()) *
+                          Eigen::AngleAxisd(input->getRightVertRaw()*16.0f/180.0f*M_PI, Eigen::Vector3d::UnitY()) *
+                          Eigen::AngleAxisd(input->getLeftVertRaw()*16.0f/180.0f*M_PI, Eigen::Vector3d::UnitX());
+          quadruped -> reOrient(target_body_R);
           // will stay in this state
           break;
 

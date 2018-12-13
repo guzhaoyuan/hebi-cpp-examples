@@ -74,6 +74,28 @@ void InputManagerMobileIO::printState() const
   std::cout << "number of mode changes: " << num_mode_toggles_ << "\n";
 }
 
+double InputManagerMobileIO::getRightVertRaw() const
+{
+  if (isConnected())
+  {
+    return right_vert_raw_;
+  }
+  else
+  {
+    return 0.0f;
+  } 
+}
+double InputManagerMobileIO::getLeftVertRaw() const
+{
+  if (isConnected())
+  {
+    return left_vert_raw_;
+  }
+  else
+  {
+    return 0.0f;
+  } 
+}
 Eigen::Vector3f InputManagerMobileIO::getTranslationVelocityCmd() const
 {
   Eigen::Vector3f translation_velocity_cmd;
