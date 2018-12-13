@@ -25,6 +25,7 @@ enum ctrl_state_type {
   QUAD_CTRL_STAND_UP3,
   QUAD_CTRL_NORMAL_LEFT,
   QUAD_CTRL_NORMAL_RIGHT,
+  QUAD_CTRL_ORIENT,
   CTRL_STATES_COUNT
 };
 // state transition variables
@@ -80,7 +81,8 @@ int main(int argc, char** argv)
   std::thread control_thread([&]()
   {
     // the main control thread
-    ctrl_state_type cur_ctrl_state = QUAD_CTRL_STAND_UP1;
+    // ctrl_state_type cur_ctrl_state = QUAD_CTRL_STAND_UP1;
+    ctrl_state_type cur_ctrl_state = QUAD_CTRL_ORIENT;  // save some energy 
     auto prev_time = std::chrono::steady_clock::now();
     // Get dt (in seconds)
     std::chrono::duration<double> dt = std::chrono::seconds(0);
@@ -170,7 +172,7 @@ int main(int argc, char** argv)
           isFinished = quadruped -> prepareQuadMode();
           if (state_run_time.count() >= startup_seconds)
           {
-            cur_ctrl_state = QUAD_CTRL_NORMAL_LEFT;
+            cur_ctrl_state = QUAD_CTRL_ORIENT;
             state_enter_time = std::chrono::steady_clock::now(); 
             quadruped -> prepareTrajectories(Quadruped::SwingMode::swing_mode_virtualLeg1, leg_swing_time);
           }
@@ -212,6 +214,13 @@ int main(int argc, char** argv)
             quadruped -> prepareTrajectories(Quadruped::SwingMode::swing_mode_virtualLeg1, leg_swing_time);
           }
           
+          break;
+
+        case QUAD_CTRL_ORIENT:
+          state_curr_time = std::chrono::steady_clock::now();
+          state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
+          quadruped -> startBodyRUpdate();
+          // will stay in this state
           break;
 
         case CTRL_STATES_COUNT:

@@ -44,11 +44,14 @@ namespace hebi {
     legs_.emplace_back(new QuadLeg(150.0 * M_PI / 180.0, 0.2375, zero_vec, params, 4, QuadLeg::LegConfiguration::Left));
     legs_.emplace_back(new QuadLeg(-150.0 * M_PI / 180.0, 0.2375, zero_vec, params, 5, QuadLeg::LegConfiguration::Right));
 
+
     // This looks like black magic to me
     if (group_)
     {
       group_->addFeedbackHandler([this] (const GroupFeedback& fbk)
       {
+        static bool first_rotation = false;
+        static std::vector<Eigen::Matrix3d> init_rotation;
         // FBK 1: get gravity direction
         // Some assistant variables calcuate needed physical quantities
         // A -z vector in a local frame.
@@ -59,33 +62,146 @@ namespace hebi {
         std::lock_guard<std::mutex> guard(fbk_lock_);
         latest_fbk_time = std::chrono::steady_clock::now();
         assert(fbk.size() == num_joints_);
-        for (int i = 0; i < num_legs_; ++i)
+        // a easier way to transform vectors between frame is use this avearge method
+        // get an average rotation by spherical average buss2001
+        
+        Eigen::Quaterniond average_q;
+        average_q.w() = 0;
+        average_q.x() = 0;
+        average_q.y() = 0;
+        average_q.z() = 0;
+        Eigen::Vector3d single_euler;
+        Eigen::Vector3d average_euler;
+        std::vector<Eigen::Quaterniond> q_list;
+        // std::cout << "angles ";
+        // for (int i = 0; i < num_legs_*num_joints_per_leg_; ++i)
+        // {
+        //     std::cout << fbk[i].actuator().position().get() << " ";
+        // }
+        // std::cout << std::endl;
+        if (updateBodyR) // this only be activated when system goes to third state, so the outside planner will 
+                         // call startUpdateBodyR to enable this flag to let the system start to update body R estimation
         {
-          // HEBI Quaternion
-          auto mod_orientation = fbk[i * num_joints_per_leg_]
-            .imu().orientation().get();
-          // Eigen Quaternion
-          Eigen::Quaterniond mod_orientation_eig(
-            mod_orientation.getW(),
-            mod_orientation.getX(),
-            mod_orientation.getY(),
-            mod_orientation.getZ());
-          Eigen::Matrix3d mod_orientation_mat = mod_orientation_eig.toRotationMatrix();
+          if (!first_rotation)
+          {
+            for (int i = 0; i < num_legs_; ++i)
+            {
+              Eigen::Matrix4d trans = legs_[i]->getKinematics().getBaseFrame();
+              Eigen::Matrix3d trans_mat = trans.topLeftCorner<3,3>();
+              auto mod_orientation = fbk[i * num_joints_per_leg_]   // 0  3  6 9 12 15
+              .imu().orientation().get();
+              Eigen::Quaterniond mod_orientation_eig(
+                mod_orientation.getW(),
+                mod_orientation.getX(),
+                mod_orientation.getY(),
+                mod_orientation.getZ());
+              Eigen::Matrix3d mod_orientation_mat = mod_orientation_eig.toRotationMatrix();
+              
+              init_rotation.push_back(mod_orientation_mat);
+            }
+            
+            first_rotation = true;
+          }
+          else
+          {
+            int valid_fbk = 0;
+            for (int i = 0; i < num_legs_; ++i)
+            {
+              Eigen::Matrix4d trans = legs_[i]->getKinematics().getBaseFrame();
+              Eigen::Matrix3d trans_mat = trans.topLeftCorner<3,3>();
+              // HEBI Quaternion
+              auto mod_orientation = fbk[i * num_joints_per_leg_]   // 0  3  6 9 12 15
+                .imu().orientation().get();
+              // Eigen Quaternion
+              Eigen::Quaterniond mod_orientation_eig(
+                mod_orientation.getW(),
+                mod_orientation.getX(),
+                mod_orientation.getY(),
+                mod_orientation.getZ());
+              // I found that this rotation matrix is nasty, they have different direction of rotation
+              // I need to convert them into angle axis, and convert all direction of axis to the same direction
+              Eigen::Matrix3d mod_orientation_mat = init_rotation[i].transpose() * mod_orientation_eig.toRotationMatrix();
+              Eigen::AngleAxisd tmp_aa = Eigen::AngleAxisd(mod_orientation_mat);
+              double new_angle = tmp_aa.angle();
+              Eigen::Vector3d axis_aa = tmp_aa.axis();
+              axis_aa = trans_mat*axis_aa;
+              // if (axis_aa.dot(Eigen::Vector3d(0,0,1)) < 0)
+              // {
+              //   new_angle = M_PI-tmp_aa.angle();
+              //   axis_aa = -axis_aa;
+              // }
+              // else
+              // {
+              //   new_angle = tmp_aa.angle();
+              // }
 
-          // Transform
-          Eigen::Matrix4d trans = legs_[i]->getKinematics().getBaseFrame();
-          Eigen::Vector3d my_grav = trans.topLeftCorner<3,3>() * mod_orientation_mat.transpose() * down;
-          // If one of the modules isn't reporting valid feedback, ignore this:
-          if (!std::isnan(my_grav[0]) && !std::isnan(my_grav[1]) && !std::isnan(my_grav[2]))
-            avg_grav += my_grav;
-        }
+              // std::cout << "mod_orientation_mat aa  " << tmp_aa.angle() << " "
+              //                                       << axis_aa(0) << " "
+              //                                       << axis_aa(1) << " "
+              //                                       << axis_aa(2) << " "
+              //                                       << std::endl;
+              Eigen::AngleAxisd tmp_aa_after = Eigen::AngleAxisd(new_angle, axis_aa);
+              mod_orientation_mat = tmp_aa_after.toRotationMatrix();
+              
+              //mod_orientation_mat = mod_orientation_mat*trans_mat.transpose();
+              single_euler = mod_orientation_mat.eulerAngles(2,1,0);
 
-        // Average the feedback from various modules and normalize.
-        avg_grav.normalize();
-        {
-          std::lock_guard<std::mutex> lg(grav_lock_);
-          gravity_direction_ = avg_grav;
+              //std::cout << "mod_orientation_mat" << mod_orientation_mat << std::endl;
+              // std::cout << "single _euler: " << single_euler(0) << " "
+              //                          << single_euler(1) << " "
+              //                          << single_euler(2) << 
+              //                          std::endl;
+              if (!std::isnan(single_euler(0)) && !std::isnan(single_euler(1)) && !std::isnan(single_euler(2)))
+              {
+                average_euler = average_euler + single_euler;
+                valid_fbk += 1;
+              }
+                
+              // Eigen::Quaterniond converted = Eigen::Quaterniond(mod_orientation_mat);
+              // average_q.w() += converted.w();
+              // average_q.x() += converted.x();
+              // average_q.y() += converted.y();
+              // average_q.z() += converted.z();
+              // q_list.push_back(converted);
+
+              // Transform
+              Eigen::Vector3d my_grav = trans.topLeftCorner<3,3>() * mod_orientation_mat.transpose() * down;
+              // If one of the modules isn't reporting valid feedback, ignore this:
+              if (!std::isnan(my_grav[0]) && !std::isnan(my_grav[1]) && !std::isnan(my_grav[2]))
+                avg_grav += my_grav;
+            } 
+            // std::cout << "average_euler: " << average_euler(0) << " "
+            //                            << average_euler(1) << " "
+            //                            << average_euler(2) << std::endl;
+            // average_q.w() /= num_legs_;
+            // average_q.x() /= num_legs_;
+            // average_q.y() /= num_legs_;
+            // average_q.z() /= num_legs_;
+            // // this is buss 2001
+            // average_q.normalize();
+            // Eigen::Quaterniond real_average_q = average_quat(average_q, q_list);
+            // auto average_euler = real_average_q.toRotationMatrix().eulerAngles(2,1,0);
+            //average_euler = average_euler/valid_fbk;
+            average_euler(0) = average_euler(0)/valid_fbk;
+            average_euler(1) = average_euler(1)/valid_fbk;
+            average_euler(2) = average_euler(2)/valid_fbk;
+            std::cout << "average_euler: " << average_euler(0) << " "
+                                      << average_euler(1) << " "
+                                      << average_euler(2) <<  std::endl;
+
+            body_R = Eigen::AngleAxisd(average_euler(0), Vector3d::UnitZ()) *
+                    Eigen::AngleAxisd(average_euler(1), Vector3d::UnitY()) *
+                    Eigen::AngleAxisd(average_euler(2), Vector3d::UnitX());
+
+            // Average the feedback from various modules and normalize.
+            avg_grav.normalize();
+            {
+              std::lock_guard<std::mutex> lg(grav_lock_);
+              gravity_direction_ = avg_grav;
+            }
+          }
         }
+        
 
         // FBK 2 read fbk positions to legs
         for (int i = 0; i < num_legs_; ++i)
@@ -670,4 +786,62 @@ namespace hebi {
       group_->sendCommand(cmd_);
   }
 
+  // private individual function
+  Eigen::Quaterniond Quadruped::average_quat(Eigen::Quaterniond average_q_, std::vector<Eigen::Quaterniond> q_list_)
+  {
+    int q_list_size = q_list_.size(); // should be 6
+    Eigen::Vector3d u(0,0,0);
+    Eigen::Quaterniond out_q;
+    out_q = average_q_;
+    int run_count = 5, curr_count = 0; // prevent infinite loop
+    do
+    {
+      curr_count ++;
+      for (int i = 0; i < q_list_size; i++)
+      {
+        Eigen::Quaterniond q_tmp = q_list_[i]*out_q;
+        // calculate log of q_tmp
+        Eigen::Vector3d qv = quat_log(q_tmp);
+
+        u += 1.0f/q_list_size*qv;
+      }
+
+      Eigen::Vector3d log_out_q = quat_log(out_q);
+      out_q = quat_exp(log_out_q + u);
+      if (curr_count > run_count)
+      {
+        break;
+      }
+    } while (u.norm()>0.1);
+
+    return out_q;
+
+  }
+
+  Eigen::Vector3d Quadruped::quat_log(Eigen::Quaterniond q)
+  {
+    Eigen::Vector3d qv = q.vec();
+    double angle;
+    double sinha = qv.norm();
+    if (sinha > 0)
+    {
+      angle = 2*atan2(sinha, q.w());
+      qv = qv * (angle/sinha);
+    }
+    else
+    {
+      qv = qv * (2/q.w());
+    }
+    return qv;
+  }
+  Eigen::Quaterniond Quadruped::quat_exp(Eigen::Vector3d qv)
+  {
+    Eigen::Quaterniond out_q;
+    double angle = qv.norm();
+    Eigen::Vector3d u_vec = qv / qv.norm();
+
+    out_q = Eigen::Quaterniond(cos(angle), sin(angle)*u_vec(0), sin(angle)*u_vec(1), sin(angle)*u_vec(2));
+
+    return out_q;
+  }
 } // namespace hebi

@@ -68,6 +68,7 @@ class Quadruped
     void runTest(SwingMode mode, double curr_time, double total_time);
     void prepareTrajectories(SwingMode mode, double leg_swing_time);
 
+    void startBodyRUpdate() {updateBodyR = true;}
 
     bool isExecution() {return is_exec_traj;}
 
@@ -77,6 +78,12 @@ class Quadruped
   private:
     // private constructor, it make sense because before construct must make sure group is successfully created
     Quadruped(std::shared_ptr<Group> group, const QuadrupedParameters& params);
+
+    // private functions
+    Eigen::Quaterniond average_quat(Eigen::Quaterniond average_q_, std::vector<Eigen::Quaterniond> q_list_);
+    Eigen::Vector3d quat_log(Eigen::Quaterniond q);
+    Eigen::Quaterniond quat_exp(Eigen::Vector3d qv);
+
     // hebi middleware to communicate with real hardware
     std::shared_ptr<Group> group_;
     GroupCommand cmd_;
@@ -90,6 +97,9 @@ class Quadruped
 
     // feedback physical quantities
     Eigen::Vector3d gravity_direction_;
+    Eigen::Matrix3d body_R;
+
+    bool updateBodyR = false;
 
     // two locks to get feedback
     std::mutex fbk_lock_;
