@@ -68,13 +68,23 @@ class Quadruped
     void runTest(SwingMode mode, double curr_time, double total_time);
     void prepareTrajectories(SwingMode mode, double leg_swing_time);
     bool reOrient(Matrix3d target_body_R);
+    bool rePos(int move_id, double tgt_x, double tgt_y, double curr_time, double total_time);
+
+    bool moveSingleLegTraj(int move_leg_id, double x_distance, double y_distance, double leg_swing_time);
+    bool moveSingleLeg(int move_leg_id, double curr_time, double total_time);
+    void saveFootPose();
+    Eigen::Vector2d getFootPose(int id);
 
     Eigen::Matrix3d getBodyR() {return body_R;}
     void startBodyRUpdate() {updateBodyR = true;}
+    void lifeManipulatorLegs();
+    void gentleLiftRecover(double curr_time, double total_time);  
 
     bool isExecution() {return is_exec_traj;}
 
     void setCommand(int index, const VectorXd* angles, const VectorXd* vels, const VectorXd* torques);
+    void saveCommand();
+    void loadCommand();
     void sendCommand();
     bool setGains();
 
@@ -90,6 +100,7 @@ class Quadruped
     // hebi middleware to communicate with real hardware
     std::shared_ptr<Group> group_;
     GroupCommand cmd_;
+    GroupCommand saved_cmd_;
 
     // leg info
     std::vector<std::unique_ptr<QuadLeg> > legs_;
@@ -132,12 +143,17 @@ class Quadruped
     // these bars need to be tuned
     const double bar_y = 0.1187; // distance fromt com of the robot to motor 0, y direction
     const double bar_x = 0.2057; // distance fromt com of the robot to motor 0, x direction
-    const double foot_bar_y = 0.1187 + 0.20; // distance fromt com of the robot to foot 0, y direction
-    const double foot_bar_x = 0.2057 + 0.34; // distance fromt com of the robot to foot 0, x direction
-    const double nominal_height_z = 0.3;
+    double foot_bar_y = 0.1187 + 0.24; // distance fromt com of the robot to foot 0, y direction 
+    double foot_bar_x = 0.2057 + 0.34; // distance fromt com of the robot to foot 0, x direction
+    double foot_bar_y_list[4];          // (see function saveFootPose) 
+    double foot_bar_x_list[4];          // (see function saveFootPose) 
+    double foot_force_ratio[4];
+    double nominal_height_z = 0.31;
 
 
     Eigen::Vector4d base_stance_ee_xyz; // expressed in base motor's frame
+    Eigen::Vector4d base_stance_ee_xyz_offset; // expressed in base motor's frame
+    Eigen::Vector3d stance_ee_xyz_fk_offset;  // HEBI's bug: they does not consider the offset of the last link.
     Eigen::Vector3d com_stance_ee_xyz;  // expressed in com of the robot's frame
 };
 

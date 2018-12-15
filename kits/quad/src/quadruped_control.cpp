@@ -25,12 +25,16 @@ enum ctrl_state_type {
   QUAD_CTRL_STAND_UP3,
   QUAD_CTRL_NORMAL_LEFT,
   QUAD_CTRL_NORMAL_RIGHT,
-  QUAD_CTRL_ORIENT,
-  QUAD_CTRL_PASSIVE_ORIENT,
+  QUAD_CTRL_ORIENT,         // in this mode, read mobile io input, convert input as orientation cmd, then change body orientation
+  QUAD_CTRL_PASSIVE_ORIENT, // keep body balanced if legs are lifted
+  QUAD_CTRL_BODY_POS,       // read mobile io input, horizontally move body position relative to ground
+  QUAD_CTRL_LEG_EXTEND,
+  QUAD_CTRL_LIFT_LEG_RECOVER,
   CTRL_STATES_COUNT
 };
 // state transition variables
 double startup_seconds = 1.9;
+double re_pose_seconds = 3;
 
 int main(int argc, char** argv)
 {
@@ -80,6 +84,7 @@ int main(int argc, char** argv)
   // http://stackoverflow.com/questions/30425772/c-11-calling-a-c-function-periodically
   std::atomic<bool> control_execute;
   control_execute.store(true, std::memory_order_release);
+  int move_leg_id = 3;
   std::thread control_thread([&]()
   {
     // the main control thread
@@ -93,7 +98,7 @@ int main(int argc, char** argv)
     // variables used in normal run test
     Eigen::Vector3d grav_vec;
     Eigen::VectorXd leg_angles;
-    double leg_swing_time = 0.5;   // need to be tested 
+    double leg_swing_time = 2;   // need to be tested 
     bool isFinished;
     // some variables used in state passive_orient
     Eigen::Matrix3d bodyR, balance_body_R, diff_body_R;
@@ -103,6 +108,9 @@ int main(int argc, char** argv)
     Eigen::AngleAxisd tmp_aa;
     double new_angle;
     Eigen::Vector3d axis_aa;
+    // used in rePose and extend
+    double tgt_x, tgt_y;
+
     while (control_execute.load(std::memory_order_acquire))
     {    
       // Wait!
@@ -133,14 +141,17 @@ int main(int argc, char** argv)
       {
   
         case HEXA_CTRL_STAND_UP_PLAN:
+        {
           // plan a stand up trajectory
           quadruped -> planStandUpTraj(startup_seconds);
           // state transition
           cur_ctrl_state = HEXA_CTRL_STAND_UP;
           state_enter_time = std::chrono::steady_clock::now(); 
           break;
+        }
 
         case HEXA_CTRL_STAND_UP:
+        {
           // start up logic 
           state_curr_time = std::chrono::steady_clock::now();
           state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
@@ -152,11 +163,13 @@ int main(int argc, char** argv)
             cur_ctrl_state = QUAD_CTRL_NORMAL_LEFT;
           }
           break;
+        }
 
         // let me write a standup strategy myself
         // it takes three step, first spread legs to let belly touch the ground, then push legs to lift the body
         // finally lift the two arms 
         case QUAD_CTRL_STAND_UP1:
+        {
           state_curr_time = std::chrono::steady_clock::now();
           state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
 
@@ -167,7 +180,9 @@ int main(int argc, char** argv)
             state_enter_time = std::chrono::steady_clock::now(); 
           }
           break;
+        }
         case QUAD_CTRL_STAND_UP2:
+        {
           state_curr_time = std::chrono::steady_clock::now();
           state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
 
@@ -179,7 +194,10 @@ int main(int argc, char** argv)
             state_enter_time = std::chrono::steady_clock::now(); 
           }
           break;
+        }
+
         case QUAD_CTRL_STAND_UP3:
+        {
           state_curr_time = std::chrono::steady_clock::now();
           state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
 
@@ -187,15 +205,18 @@ int main(int argc, char** argv)
           if (state_run_time.count() >= startup_seconds)
           {
             // the entry to some final state, either running or rotating
-            cur_ctrl_state = QUAD_CTRL_PASSIVE_ORIENT;
+            cur_ctrl_state = QUAD_CTRL_BODY_POS;
             balance_body_R = quadruped -> getBodyR();
+            quadruped -> saveFootPose();
             state_enter_time = std::chrono::steady_clock::now(); 
             //quadruped -> prepareTrajectories(Quadruped::SwingMode::swing_mode_virtualLeg1, leg_swing_time);
           }
           break;
+        }
 
         // normal left and normal right is not working now (12-10)
         case QUAD_CTRL_NORMAL_LEFT:
+        {
           state_curr_time = std::chrono::steady_clock::now();
           state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
 
@@ -217,8 +238,10 @@ int main(int argc, char** argv)
             quadruped -> prepareTrajectories(Quadruped::SwingMode::swing_mode_virtualLeg2, leg_swing_time);
           }
           break;
+        }
 
         case QUAD_CTRL_NORMAL_RIGHT:
+        {
           state_curr_time = std::chrono::steady_clock::now();
           state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
 
@@ -232,9 +255,10 @@ int main(int argc, char** argv)
           }
           
           break;
-
+        }
         // in this state, robot changes it orientation according to external input
         case QUAD_CTRL_ORIENT:
+        {
           state_curr_time = std::chrono::steady_clock::now();
           state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
           quadruped -> startBodyRUpdate();
@@ -247,9 +271,13 @@ int main(int argc, char** argv)
           quadruped -> reOrient(target_body_R);
           // will stay in this state
           break;
-        
+        }
         // in this state, robot passively keep its body balanced
+        // TODO: 12-14 I found a strange behaviour. The front legs and rear legs are not symmetric when they stands on the ground
+        //             front legs has large relative angles, but rear legs has small relative angles. very strange. 
+        //       12-14 afternoon: I think the reason is Hebi's IK and FK does not consider the offset in the last link
         case QUAD_CTRL_PASSIVE_ORIENT:
+        {
           state_curr_time = std::chrono::steady_clock::now();
           state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
           quadruped -> startBodyRUpdate();
@@ -257,13 +285,121 @@ int main(int argc, char** argv)
           diff_body_R = balance_body_R* bodyR.transpose() ;
 
           tmp_aa = Eigen::AngleAxisd(diff_body_R);
-          tmp_aa.angle() = 0.031* tmp_aa.angle(); // reduced difference
+          tmp_aa.angle() = 0.021* tmp_aa.angle(); // reduced difference
           axis_aa = tmp_aa.axis();
           control_R = control_R*tmp_aa.toRotationMatrix(); // error integration
 
           quadruped -> reOrient(control_R); // control orientation using error
           // will stay in this state
           break;
+        }
+
+        case QUAD_CTRL_BODY_POS:
+        {
+          state_curr_time = std::chrono::steady_clock::now();
+          state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
+          quadruped -> startBodyRUpdate();
+
+          Eigen::Vector2d pose0 = quadruped -> getFootPose(0);
+          Eigen::Vector2d pose1 = quadruped -> getFootPose(1);
+          Eigen::Vector2d pose2 = quadruped -> getFootPose(2);
+          Eigen::Vector2d pose3 = quadruped -> getFootPose(3);
+          double y_move_distance; 
+          double x_move_distance;
+          if (move_leg_id == 3)
+          {
+            Eigen::Vector2d averge_pose = 0.333*(pose0+pose1+pose2);
+            y_move_distance = -0.65*averge_pose(1);
+            x_move_distance = -0.65*averge_pose(0);
+            tgt_x = x_move_distance* (state_run_time.count()/re_pose_seconds);
+            tgt_y = y_move_distance* (state_run_time.count()/re_pose_seconds);
+          }
+          else if (move_leg_id == 2)
+          {
+            Eigen::Vector2d averge_pose = 0.333*(pose0+pose1+pose3);
+            y_move_distance = -0.65*averge_pose(1);
+            x_move_distance = -0.65*averge_pose(0);
+            tgt_x = x_move_distance* (state_run_time.count()/re_pose_seconds);
+            tgt_y = y_move_distance* (state_run_time.count()/re_pose_seconds);
+          }
+          else if (move_leg_id == 1)
+          {
+            Eigen::Vector2d averge_pose = 0.333*(pose0+pose2+pose3);
+            y_move_distance = -0.65*averge_pose(1);
+            x_move_distance = -0.65*averge_pose(0);
+            tgt_x = x_move_distance* (state_run_time.count()/re_pose_seconds);
+            tgt_y = y_move_distance* (state_run_time.count()/re_pose_seconds);
+          }
+          else if (move_leg_id == 0)
+          {
+
+            Eigen::Vector2d averge_pose = 0.333*(pose1+pose2+pose3);
+            y_move_distance = -0.65*averge_pose(1);
+            x_move_distance = -0.65*averge_pose(0);
+            tgt_x = x_move_distance* (state_run_time.count()/re_pose_seconds);
+            tgt_y = y_move_distance* (state_run_time.count()/re_pose_seconds);
+          }
+          //std::cout <<  input->getRightVertRaw() << " - "<< input->getLeftVertRaw() << std::endl;
+          quadruped -> rePos(move_leg_id, tgt_x, tgt_y, state_run_time.count(),re_pose_seconds);
+          // will change to QUAD_CTRL_LEG_EXTEND
+          if (state_run_time.count() >= re_pose_seconds)
+          {
+            cur_ctrl_state = QUAD_CTRL_LEG_EXTEND;
+            quadruped -> moveSingleLegTraj(move_leg_id, -x_move_distance, -y_move_distance, leg_swing_time);  
+            state_enter_time = std::chrono::steady_clock::now(); 
+            quadruped -> saveCommand();
+            quadruped -> saveFootPose();
+          }
+          break;
+        }
+
+        case QUAD_CTRL_LEG_EXTEND:
+        {
+          state_curr_time = std::chrono::steady_clock::now();
+          state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
+          
+          // notice, this move_id is 0 1 2 3 0 1 2 3..., but in the code, they need to be converted to 0 1 4 5 0 1 4 5...
+          quadruped -> moveSingleLeg(move_leg_id, state_run_time.count(), leg_swing_time);  
+
+          if (state_run_time.count() >= leg_swing_time)
+          {
+            cur_ctrl_state = QUAD_CTRL_LIFT_LEG_RECOVER; //let swing arms recover
+            state_enter_time = std::chrono::steady_clock::now(); 
+            
+            quadruped -> saveCommand();
+            quadruped -> saveFootPose();
+            if (move_leg_id == 3)
+            {
+              move_leg_id = 2;
+            }
+            else if (move_leg_id ==2){
+              move_leg_id = 0;
+            }
+            else if (move_leg_id ==1){
+              move_leg_id = 3;
+            }
+            else if (move_leg_id ==0){
+              move_leg_id = 1;
+            }
+          }
+          break;
+        }
+        case QUAD_CTRL_LIFT_LEG_RECOVER:
+        {
+          state_curr_time = std::chrono::steady_clock::now();
+          state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
+          
+          quadruped -> gentleLiftRecover(state_run_time.count(), 1);  
+
+          if (state_run_time.count() >= 1)
+          {
+            cur_ctrl_state = QUAD_CTRL_BODY_POS; 
+            state_enter_time = std::chrono::steady_clock::now(); 
+            quadruped -> saveFootPose();
+            quadruped -> saveCommand();
+          }
+          break;
+        }
 
         case CTRL_STATES_COUNT:
         default:
