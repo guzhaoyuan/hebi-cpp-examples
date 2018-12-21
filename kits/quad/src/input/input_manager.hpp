@@ -24,6 +24,9 @@ public:
     return true;
   }
 
+  virtual double getRightVertRaw() const = 0;
+  virtual double getLeftVertRaw() const = 0;
+  
   // Get the current translation velocity command
   virtual Eigen::Vector3f getTranslationVelocityCmd() const = 0;
 

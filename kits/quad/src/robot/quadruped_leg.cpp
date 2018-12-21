@@ -11,7 +11,7 @@ namespace hebi {
                    const Eigen::VectorXd& current_angles, 
                    const QuadrupedParameters& params, 
                    int index, LegConfiguration configuration)
-  : index_(index), spring_shift_(configuration == LegConfiguration::Right ? 3.75 : -3.75) //so hardcode
+  : index_(index), spring_shift_(configuration == LegConfiguration::Right ? 8.95 : -8.95) //so hardcode
   {
     // deep copy?
     current_angles_ = current_angles;
@@ -72,7 +72,7 @@ namespace hebi {
    const Eigen::Vector3d& foot_force)
   {
     // TODO: pull from XML?
-    constexpr float drag_shift = 1.5; // Nm / (rad/sec)
+    constexpr float drag_shift = 2.5; // Nm / (rad/sec)
     // Get the Jacobian
     Eigen::MatrixXd jacobian_ee;
     robot_model::MatrixXdVector jacobian_com;

@@ -26,6 +26,9 @@ public:
   // variables that are stored by the class.
   void printState() const override;
 
+  double getRightVertRaw() const override;
+  double getLeftVertRaw() const override;
+
   // Get the current translation velocity command
   Eigen::Vector3f getTranslationVelocityCmd() const override;
 
