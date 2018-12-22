@@ -52,14 +52,24 @@ SET(SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/src/xml_util/xml_helpers.cpp
 )
 
+SET(TESTSOURCES
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/testIK.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/input/input_manager_mobile_io.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/xml_util/pugixml.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/xml_util/xml_helpers.cpp
+)
+
 add_executable(quadruped_control ${SOURCES} $<TARGET_OBJECTS:quadruped_core>)
+add_executable(testIK ${TESTSOURCES} $<TARGET_OBJECTS:quadruped_core>)
 qt5_use_modules(quadruped_control Core Gui Widgets)
+qt5_use_modules(testIK Core Gui Widgets)
 
 # link hebi library
 if (WIN32) 
 target_link_libraries( quadruped_control hebi kernel32 ) # kernel32 for sleep commands.
 else()
 target_link_libraries( quadruped_control hebi hebic++ m pthread)
+target_link_libraries( testIK hebi hebic++ m pthread)
 endif()
 
 # very fancy tools
