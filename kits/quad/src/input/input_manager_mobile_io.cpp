@@ -40,7 +40,8 @@ bool InputManagerMobileIO::reset()
       left_vert_raw_ = analog.getFloat(2);
 
       slider_1_raw_ = analog.getFloat(3);
-
+      slider_4_raw_ = analog.getFloat(6);
+      
       right_horz_raw_ = analog.getFloat(7);
       right_vert_raw_ = analog.getFloat(8);
 
@@ -74,11 +75,33 @@ void InputManagerMobileIO::printState() const
   std::cout << "number of mode changes: " << num_mode_toggles_ << "\n";
 }
 
+double InputManagerMobileIO::getRightHorzRaw() const
+{
+  if (isConnected())
+  {
+    return right_horz_raw_;
+  }
+  else
+  {
+    return 0.0f;
+  } 
+}
 double InputManagerMobileIO::getRightVertRaw() const
 {
   if (isConnected())
   {
     return right_vert_raw_;
+  }
+  else
+  {
+    return 0.0f;
+  } 
+}
+double InputManagerMobileIO::getLeftHorzRaw() const
+{
+  if (isConnected())
+  {
+    return left_horz_raw_;
   }
   else
   {

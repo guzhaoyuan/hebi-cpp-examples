@@ -55,15 +55,10 @@ int main(int argc, char** argv)
 
   // INIT STEP 2: init input
   std::unique_ptr<input::InputManager> input(new input::InputManagerMobileIO());
-  if (!is_quiet && !input->isConnected())
+  while (!input->isConnected())
   {
-      std::cout << "Could not find input joystick." << std::endl;
-      //return 1;   // if do not need mobile IO joy stick, comment this
-  }
-  // ------------ Retry a "reset" multiple times! Wait for this in a loop.
-  while (is_quiet && !input->isConnected())
-  {
-      static_cast<input::InputManagerMobileIO*>(input.get())->reset();
+    std::cout << "Could not find input joystick." << std::endl;
+    static_cast<input::InputManagerMobileIO*>(input.get())->reset();
   }
 
   std::cout << "Found input joystick -- starting control program.\n";
@@ -226,10 +221,11 @@ int main(int argc, char** argv)
           state_curr_time = std::chrono::steady_clock::now();
           state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
 
-          std::cout <<  "Joy: "<< input->getRightVertRaw() << " - "<< input->getLeftVertRaw() << std::endl;
+          std::cout <<  "Left : "<< input->getLeftVertRaw() << " - "<< input->getLeftHorzRaw() << std::endl;
+          std::cout <<  "Right: "<< input->getRightVertRaw() << " - "<< input->getRightHorzRaw() << std::endl;
 
-          quadruped -> moveLegs(input->getRightVertRaw(), input->getLeftVertRaw());
-          
+          quadruped -> moveLegs(input->getLeftHorzRaw(), input->getLeftVertRaw(), 0);
+
           break;
         }
 

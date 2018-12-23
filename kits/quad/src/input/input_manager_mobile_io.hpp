@@ -28,6 +28,8 @@ public:
 
   double getRightVertRaw() const override;
   double getLeftVertRaw() const override;
+  double getRightHorzRaw() const override;
+  double getLeftHorzRaw() const override;
 
   // Get the current translation velocity command
   Eigen::Vector3f getTranslationVelocityCmd() const override;
@@ -64,6 +66,7 @@ private:
   float left_vert_raw_{0}; // Chassis tilt
 
   float slider_1_raw_{0}; // Height
+  float slider_4_raw_{0};
 
   float right_horz_raw_{0}; // Translation (l/r)
   float right_vert_raw_{0}; // Translation (f/b)

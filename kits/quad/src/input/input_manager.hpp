@@ -24,6 +24,8 @@ public:
     return true;
   }
 
+  virtual double getRightHorzRaw() const = 0;
+  virtual double getLeftHorzRaw() const = 0;
   virtual double getRightVertRaw() const = 0;
   virtual double getLeftVertRaw() const = 0;
   

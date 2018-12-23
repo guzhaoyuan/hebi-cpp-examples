@@ -90,7 +90,7 @@ class Quadruped
     bool setGains();
 
     // Public Function below is added by Zhaoyuan, use at your own risk
-    void moveLegs(double lr, double fb);
+    void moveLegs(double lr, double fb, double ud);
 
   private:
     // private constructor, it make sense because before construct must make sure group is successfully created
