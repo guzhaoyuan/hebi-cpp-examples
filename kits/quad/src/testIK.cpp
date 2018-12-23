@@ -23,13 +23,18 @@ enum ctrl_state_type {
   QUAD_CTRL_STAND_UP1,
   QUAD_CTRL_STAND_UP2,
   QUAD_CTRL_STAND_UP3,
-  QUAD_CTRL_NORMAL_LEFT,
+  
+  QUAD_CTRL_NORMAL_LEFT, // <- entry for something not working, segFault
   QUAD_CTRL_NORMAL_RIGHT,
-  QUAD_CTRL_ORIENT,         // in this mode, read mobile io input, convert input as orientation cmd, then change body orientation
-  QUAD_CTRL_PASSIVE_ORIENT, // keep body balanced if legs are lifted
-  QUAD_CTRL_BODY_POS,       // read mobile io input, horizontally move body position relative to ground
+  
+  QUAD_CTRL_ORIENT,         // <- entry, in this mode, read mobile io input, convert input as orientation cmd, then change body orientation
+  QUAD_CTRL_PASSIVE_ORIENT, // <- entry, keep body balanced if legs are lifted
+  QUAD_CTRL_FOOT_POS,       // <- entry for move leg 3\4, by zhaoyuan
+
+  QUAD_CTRL_BODY_POS,       // <- entry, move base and move four legs seperately
   QUAD_CTRL_LEG_EXTEND,
   QUAD_CTRL_LIFT_LEG_RECOVER,
+  
   CTRL_STATES_COUNT
 };
 // state transition variables
@@ -205,12 +210,26 @@ int main(int argc, char** argv)
           if (state_run_time.count() >= startup_seconds)
           {
             // the entry to some final state, either running or rotating
-            cur_ctrl_state = CTRL_STATES_COUNT;
+            cur_ctrl_state = QUAD_CTRL_FOOT_POS;
             balance_body_R = quadruped -> getBodyR();
             quadruped -> saveFootPose();
+            quadruped -> setStartGait();
             state_enter_time = std::chrono::steady_clock::now(); 
             //quadruped -> prepareTrajectories(Quadruped::SwingMode::swing_mode_virtualLeg1, leg_swing_time);
           }
+          break;
+        }
+
+
+        case QUAD_CTRL_FOOT_POS:
+        {
+          state_curr_time = std::chrono::steady_clock::now();
+          state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
+
+          std::cout <<  "Joy: "<< input->getRightVertRaw() << " - "<< input->getLeftVertRaw() << std::endl;
+
+          quadruped -> moveLegs(input->getRightVertRaw(), input->getLeftVertRaw());
+          
           break;
         }
 

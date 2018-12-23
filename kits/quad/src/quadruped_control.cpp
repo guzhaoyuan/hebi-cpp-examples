@@ -205,7 +205,7 @@ int main(int argc, char** argv)
           if (state_run_time.count() >= startup_seconds)
           {
             // the entry to some final state, either running or rotating
-            cur_ctrl_state = QUAD_CTRL_BODY_POS;
+            cur_ctrl_state = QUAD_CTRL_ORIENT;
             balance_body_R = quadruped -> getBodyR();
             quadruped -> saveFootPose();
             state_enter_time = std::chrono::steady_clock::now(); 

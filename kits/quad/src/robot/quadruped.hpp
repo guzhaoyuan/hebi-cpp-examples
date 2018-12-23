@@ -74,9 +74,10 @@ class Quadruped
     bool moveSingleLeg(int move_leg_id, double curr_time, double total_time);
     void saveFootPose();
     Eigen::Vector2d getFootPose(int id);
-
     Eigen::Matrix3d getBodyR() {return body_R;}
+
     void startBodyRUpdate() {updateBodyR = true;}
+    void setStartGait() {startGait = true;}
     void lifeManipulatorLegs();
     void gentleLiftRecover(double curr_time, double total_time);  
 
@@ -87,6 +88,9 @@ class Quadruped
     void loadCommand();
     void sendCommand();
     bool setGains();
+
+    // Public Function below is added by Zhaoyuan, use at your own risk
+    void moveLegs(double lr, double fb);
 
   private:
     // private constructor, it make sense because before construct must make sure group is successfully created
@@ -114,6 +118,7 @@ class Quadruped
     Eigen::Matrix3d body_R;
 
     bool updateBodyR = false;
+    bool startGait = false; // signal for first time enter Gait loop
 
     // two locks to get feedback
     std::mutex fbk_lock_;

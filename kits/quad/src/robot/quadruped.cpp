@@ -492,7 +492,7 @@ namespace hebi {
     }
     // lift manipulate legs
     lifeManipulatorLegs();
-    
+    saveCommand();
     sendCommand();
     return isReaching;   
   }
@@ -841,6 +841,8 @@ namespace hebi {
 
   }
 
+// this function  print out the fk result for 4 supporting legs
+// and put the xy data in the foot_bar_x_list & foot_bar_y_list
   void Quadruped::saveFootPose()
   {
     int support_vleg[4];    
@@ -1146,7 +1148,7 @@ namespace hebi {
   }
   void Quadruped::loadCommand()
   {
-    for (int i = 0; i < num_legs_*num_joints_per_leg_; i++)
+    for (int i = 0; i < num_legs_ * num_joints_per_leg_; i++)
     {
       cmd_[i].actuator().position().set(saved_cmd_[i].actuator().position().get());
       cmd_[i].actuator().velocity().set(saved_cmd_[i].actuator().velocity().get());
@@ -1194,6 +1196,24 @@ namespace hebi {
     cmd_[leg_offset + 2].actuator().effort().set(0);
     sendCommand();
   }
+
+  // Author: Zhaoyuan
+  // move leg 3 or 4 while other legs supporting the robot
+  void Quadruped::moveLegs(double lr, double fb){
+
+    loadCommand();
+    // change only 1 arm, keep others same
+
+    // Eigen::Vector3d angles = legs_[3] -> getJointAngle();
+    // legs_[i]->computeIK(leg_end, home_stance_xyz);
+    int leg_offset = 3 * num_joints_per_leg_;
+    cmd_[leg_offset + 1].actuator().position().set(saved_cmd_[leg_offset + 1].actuator().position().get() + 0.01*fb);
+    cmd_[leg_offset + 2].actuator().position().set(saved_cmd_[leg_offset + 2].actuator().position().get() + 0.01*lr);
+
+    saveCommand();
+    sendCommand();   
+  }
+
   void Quadruped::sendCommand()
   {
     if (group_)
