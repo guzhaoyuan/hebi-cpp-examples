@@ -1203,12 +1203,19 @@ namespace hebi {
 
     loadCommand();
     // change only 1 arm, keep others same
-
-    // Eigen::Vector3d angles = legs_[3] -> getJointAngle();
-    // legs_[i]->computeIK(leg_end, home_stance_xyz);
+    Eigen::VectorXd target_angles;
+    Eigen::Vector4d target_ee_xyz = Eigen::Vector4d(0.65f + 0.1*fb, 0.0f + 0.1*lr, 0.09f, 0); // expressed in base motor's frame
+    auto base_frame = legs_[3] -> getBaseFrame();
+    Eigen::VectorXd home_stance_xyz = (base_frame * target_ee_xyz).topLeftCorner<3,1>();
+    legs_[3]->computeIK(target_angles, home_stance_xyz);
     int leg_offset = 3 * num_joints_per_leg_;
-    cmd_[leg_offset + 1].actuator().position().set(saved_cmd_[leg_offset + 1].actuator().position().get() + 0.01*fb);
-    cmd_[leg_offset + 2].actuator().position().set(saved_cmd_[leg_offset + 2].actuator().position().get() + 0.01*lr);
+    cmd_[leg_offset + 0].actuator().position().set(target_angles[0]);
+    cmd_[leg_offset + 1].actuator().position().set(target_angles[1]);
+    cmd_[leg_offset + 2].actuator().position().set(target_angles[2]);
+
+    //just move angle 
+    // cmd_[leg_offset + 1].actuator().position().set(saved_cmd_[leg_offset + 1].actuator().position().get() + 0.01*fb);
+    // cmd_[leg_offset + 2].actuator().position().set(saved_cmd_[leg_offset + 2].actuator().position().get() + 0.01*lr);
 
     saveCommand();
     sendCommand();   
