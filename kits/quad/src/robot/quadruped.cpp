@@ -867,6 +867,7 @@ namespace hebi {
 
     }
   }
+  
   Eigen::Vector2d Quadruped::getFootPose(int id)
   {
     return Eigen::Vector2d(foot_bar_x_list[id], foot_bar_y_list[id]);

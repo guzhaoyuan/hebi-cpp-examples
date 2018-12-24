@@ -59,8 +59,16 @@ SET(TESTSOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/src/xml_util/xml_helpers.cpp
 )
 
+SET(STATICWALKSOURCES
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/staticWalk.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/input/input_manager_mobile_io.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/xml_util/pugixml.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/xml_util/xml_helpers.cpp
+)
+
 add_executable(quadruped_control ${SOURCES} $<TARGET_OBJECTS:quadruped_core>)
 add_executable(testIK ${TESTSOURCES} $<TARGET_OBJECTS:quadruped_core>)
+add_executable(staticWalk ${STATICWALKSOURCES} $<TARGET_OBJECTS:quadruped_core>)
 qt5_use_modules(quadruped_control Core Gui Widgets)
 qt5_use_modules(testIK Core Gui Widgets)
 
@@ -70,6 +78,7 @@ target_link_libraries( quadruped_control hebi kernel32 ) # kernel32 for sleep co
 else()
 target_link_libraries( quadruped_control hebi hebic++ m pthread)
 target_link_libraries( testIK hebi hebic++ m pthread)
+target_link_libraries( staticWalk hebi hebic++ m pthread)
 endif()
 
 # very fancy tools

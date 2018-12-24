@@ -58,7 +58,6 @@ int main(int argc, char** argv)
   std::unique_ptr<input::InputManager> input(new input::InputManagerMobileIO());
   while (!input->isConnected())
   {
-    std::cout << "Could not find input joystick." << std::endl;
     static_cast<input::InputManagerMobileIO*>(input.get())->reset();
   }
 
