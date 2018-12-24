@@ -1200,7 +1200,9 @@ namespace hebi {
   // Author: Zhaoyuan
   // move leg 3 or 4 while other legs supporting the robot
   void Quadruped::moveLegs(double lr, double fb, double ud){
-
+    // here not use current position, use last sent command instead
+    // we assume the motor is at the position of last command
+    // if use current position, the position can drift away
     loadCommand();
     // change only 1 arm, keep others same
     Eigen::VectorXd target_angles;
@@ -1225,6 +1227,49 @@ namespace hebi {
     saveCommand();
     sendCommand();   
   }
+
+  // Author: Zhaoyuan
+  // move body with 4 legs supporting the robot
+  void Quadruped::moveBody(double lr, double fb, double ud){
+    loadCommand();
+
+    for (auto legIndex : walkingLegs){
+
+      // get last command
+      hebi::robot_model::Matrix4dVector frames;
+      // Eigen::VectorXd start_leg_angles = legs_[legIndex] -> getJointAngle();
+      Eigen::VectorXd start_leg_angles(3);
+      int leg_offset = legIndex * num_joints_per_leg_;
+      start_leg_angles(0) = cmd_[leg_offset + 0].actuator().position().get();
+      start_leg_angles(1) = cmd_[leg_offset + 1].actuator().position().get();
+      start_leg_angles(2) = cmd_[leg_offset + 2].actuator().position().get();
+
+      // calc FK with last sent command, get EndEffector in leg base frame
+      legs_[legIndex] -> getKinematics().getFK(HebiFrameTypeEndEffector, start_leg_angles, frames); // I assume this is in the frame of base frame
+      
+      // get foot position in com frame, add joy command
+      Eigen::Vector3d start_com_ee_xyz = frames[0].topRightCorner<3,1>(); 
+      Eigen::Vector3d joy_command = {-0.01*fb, 0.01*lr, 0.01*ud}; // get base frame wrt com
+      Eigen::VectorXd target_com_ee_xyz = start_com_ee_xyz + joy_command;
+
+      if(legIndex == 1){
+        std::cout << "leg "<< legIndex << " foot at " << target_com_ee_xyz << std::endl;
+      }
+
+      // calc IK
+      Eigen::VectorXd target_angles;
+      legs_[legIndex]->computeIK(target_angles, target_com_ee_xyz);
+
+      // set command
+      
+      cmd_[leg_offset + 0].actuator().position().set(target_angles[0]);
+      cmd_[leg_offset + 1].actuator().position().set(target_angles[1]);
+      cmd_[leg_offset + 2].actuator().position().set(target_angles[2]);
+    }
+    saveCommand();
+    sendCommand();
+  }
+
 
   void Quadruped::sendCommand()
   {

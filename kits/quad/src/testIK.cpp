@@ -30,8 +30,9 @@ enum ctrl_state_type {
   QUAD_CTRL_ORIENT,         // <- entry, in this mode, read mobile io input, convert input as orientation cmd, then change body orientation
   QUAD_CTRL_PASSIVE_ORIENT, // <- entry, keep body balanced if legs are lifted
   QUAD_CTRL_FOOT_POS,       // <- entry for move leg 3\4, by zhaoyuan
+  QUAD_CTRL_BODY_POS,       // <- entry for move mody with 4 legs, by zhaoyuan
 
-  QUAD_CTRL_BODY_POS,       // <- entry, move base and move four legs seperately
+  QUAD_STATIC_WALK,         // <- entry, move base and move four legs seperately
   QUAD_CTRL_LEG_EXTEND,
   QUAD_CTRL_LIFT_LEG_RECOVER,
   
@@ -205,7 +206,7 @@ int main(int argc, char** argv)
           if (state_run_time.count() >= startup_seconds)
           {
             // the entry to some final state, either running or rotating
-            cur_ctrl_state = QUAD_CTRL_FOOT_POS;
+            cur_ctrl_state = QUAD_CTRL_BODY_POS;
             balance_body_R = quadruped -> getBodyR();
             quadruped -> saveFootPose();
             quadruped -> setStartGait();
@@ -221,11 +222,22 @@ int main(int argc, char** argv)
           state_curr_time = std::chrono::steady_clock::now();
           state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
 
-          std::cout <<  "Left : "<< input->getLeftVertRaw() << " - "<< input->getLeftHorzRaw() << std::endl;
-          std::cout <<  "Right: "<< input->getRightVertRaw() << " - "<< input->getRightHorzRaw() << std::endl;
+          // std::cout <<  "Left : "<< input->getLeftVertRaw() << " - "<< input->getLeftHorzRaw() << std::endl;
+          // std::cout <<  "Right: "<< input->getRightVertRaw() << " - "<< input->getRightHorzRaw() << std::endl;
 
           quadruped -> moveLegs(input->getLeftHorzRaw(), input->getLeftVertRaw(), 0);
 
+          break;
+        }
+
+        case QUAD_CTRL_BODY_POS:
+        {
+          state_curr_time = std::chrono::steady_clock::now();
+          state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
+
+          std::cout <<  "Right: "<< input->getRightVertRaw() << " - "<< input->getRightHorzRaw() << std::endl;
+          quadruped -> moveBody(input->getRightHorzRaw(), input->getRightVertRaw(), 0);
+          std::this_thread::sleep_for(std::chrono::milliseconds(50));
           break;
         }
 
@@ -311,7 +323,7 @@ int main(int argc, char** argv)
 
         // this code is did by shuo
         // move base and move four legs seperately
-        case QUAD_CTRL_BODY_POS:
+        case QUAD_STATIC_WALK:
         {
           state_curr_time = std::chrono::steady_clock::now();
           state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
@@ -410,7 +422,7 @@ int main(int argc, char** argv)
 
           if (state_run_time.count() >= 1)
           {
-            cur_ctrl_state = QUAD_CTRL_BODY_POS; 
+            cur_ctrl_state = QUAD_STATIC_WALK; 
             state_enter_time = std::chrono::steady_clock::now(); 
             quadruped -> saveFootPose();
             quadruped -> saveCommand();

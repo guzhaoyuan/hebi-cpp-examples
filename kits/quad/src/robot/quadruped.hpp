@@ -91,6 +91,7 @@ class Quadruped
 
     // Public Function below is added by Zhaoyuan, use at your own risk
     void moveLegs(double lr, double fb, double ud);
+    void moveBody(double lr, double fb, double ud);
 
   private:
     // private constructor, it make sense because before construct must make sure group is successfully created
@@ -155,6 +156,9 @@ class Quadruped
     double foot_force_ratio[4];
     double nominal_height_z = 0.31;
 
+    // leg Definition
+    const std::vector<int> walkingLegs = {0, 1, 4, 5};
+    const std::vector<int> manipulateLegs = {2, 3};
 
     Eigen::Vector4d base_stance_ee_xyz; // expressed in base motor's frame
     Eigen::Vector4d base_stance_ee_xyz_offset; // expressed in base motor's frame
