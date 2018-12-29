@@ -45,7 +45,7 @@ namespace hebi {
     legs_.emplace_back(new QuadLeg(-150.0 * M_PI / 180.0, 0.2375, zero_vec, params, 5, QuadLeg::LegConfiguration::Right));
 
 
-    base_stance_ee_xyz = Eigen::Vector4d(0.65f, 0.0f, -0.20f, 0); // expressed in base motor's frame
+    base_stance_ee_xyz = Eigen::Vector4d(0.50f, 0.0f, -0.15f, 0); // expressed in base motor's frame
     foot_bar_y = 0.55f/2 + bar_y;                   //  \ 
     foot_bar_x = 0.55f/2*sqrt(3) + bar_x;           //  |  shoud be the same 
     nominal_height_z = 0.23f;                       //  /
@@ -419,10 +419,10 @@ namespace hebi {
     for (int i = 0; i < num_legs_; ++i)
     {
       auto base_frame = legs_[i] -> getBaseFrame();
-      if (i == 0)      base_stance_ee_xyz_offset = Eigen::Vector4d(0.0,  0.07,0,0);
-      else if (i == 5) base_stance_ee_xyz_offset = Eigen::Vector4d(  0,  0.07,0,0);
-      else if (i == 1) base_stance_ee_xyz_offset = Eigen::Vector4d(0.0, -0.07,0,0);
-      else if (i == 4) base_stance_ee_xyz_offset = Eigen::Vector4d(  0, -0.07,0,0);
+      if (i == 0)      base_stance_ee_xyz_offset = Eigen::Vector4d(0.0,  0.0, 0, 0);
+      else if (i == 5) base_stance_ee_xyz_offset = Eigen::Vector4d(  0,  0.0, 0, 0);
+      else if (i == 1) base_stance_ee_xyz_offset = Eigen::Vector4d(0.0, -0.0, 0, 0);
+      else if (i == 4) base_stance_ee_xyz_offset = Eigen::Vector4d(  0, -0.0, 0, 0);
       else base_stance_ee_xyz_offset = Eigen::Vector4d(0,0,0,0);
         
       Eigen::VectorXd home_stance_xyz = (base_frame * (base_stance_ee_xyz+base_stance_ee_xyz_offset)).topLeftCorner<3,1>();
@@ -445,6 +445,7 @@ namespace hebi {
 
     lifeManipulatorLegs();
 
+    saveCommand();
     sendCommand();
     return isReaching;   
   }
@@ -1200,14 +1201,14 @@ namespace hebi {
 
   // Author: Zhaoyuan
   // move leg 3 or 4 while other legs supporting the robot
-  void Quadruped::moveLegs(double lr, double fb, double ud){
+  void Quadruped::moveLegs(double dx, double dy, double dz){
     // here not use current position, use last sent command instead
     // we assume the motor is at the position of last command
     // if use current position, the position can drift away
     loadCommand();
     // change only 1 arm, keep others same
     Eigen::VectorXd target_angles;
-    Eigen::Vector4d target_leg_ee_xyz = Eigen::Vector4d(0.65f + 0.1*fb, 0.0f + 0.1*lr, 0.09f + 0.1*ud, 0); // expressed in base motor's frame
+    Eigen::Vector4d target_leg_ee_xyz = Eigen::Vector4d(0.65f + 0.1*dy, 0.0f + 0.1*dx, 0.09f + 0.1*dz, 0); // expressed in base motor's frame
     
     for(int i = 2; i<4; i++){
       auto base_frame = legs_[i] -> getBaseFrame();
@@ -1231,7 +1232,7 @@ namespace hebi {
 
   // Author: Zhaoyuan
   // move body with 4 legs supporting the robot
-  void Quadruped::moveBody(double lr, double fb, double ud){
+  void Quadruped::moveBody(double dx, double dy, double dz){
     loadCommand();
 
     for (auto legIndex : walkingLegs){
@@ -1250,7 +1251,7 @@ namespace hebi {
       
       // get foot position in com frame, add joy command
       Eigen::Vector3d start_com_ee_xyz = frames[0].topRightCorner<3,1>(); 
-      Eigen::Vector3d joy_command = {-0.01*fb, 0.01*lr, 0.01*ud}; // get base frame wrt com
+      Eigen::Vector3d joy_command = {-0.01*dx, -0.01*dy, 0.01*dz}; // get base frame wrt com
       Eigen::VectorXd target_com_ee_xyz = start_com_ee_xyz + joy_command;
 
       if(legIndex == 1){
@@ -1262,15 +1263,125 @@ namespace hebi {
       legs_[legIndex]->computeIK(target_angles, target_com_ee_xyz);
 
       // set command
-      
       cmd_[leg_offset + 0].actuator().position().set(target_angles[0]);
       cmd_[leg_offset + 1].actuator().position().set(target_angles[1]);
       cmd_[leg_offset + 2].actuator().position().set(target_angles[2]);
     }
+
     saveCommand();
     sendCommand();
   }
 
+
+  void Quadruped::moveFootRel(int footIndex, double dx, double dy, double dz){
+    loadCommand();
+
+  // get last command
+    hebi::robot_model::Matrix4dVector frames;
+    Eigen::VectorXd start_leg_angles(3);
+    int leg_offset = footIndex * num_joints_per_leg_;
+    start_leg_angles(0) = cmd_[leg_offset + 0].actuator().position().get();
+    start_leg_angles(1) = cmd_[leg_offset + 1].actuator().position().get();
+    start_leg_angles(2) = cmd_[leg_offset + 2].actuator().position().get();
+
+  // calc FK with last sent command, get EndEffector in leg base frame
+    legs_[footIndex] -> getKinematics().getFK(HebiFrameTypeEndEffector, start_leg_angles, frames); // I assume this is in the frame of base frame
+
+  // get foot position in com frame, add joy command
+    Eigen::Vector3d start_com_ee_xyz = frames[0].topRightCorner<3,1>(); 
+    Eigen::Vector3d move_command = {0.01*dx, 0.01*dy, 0.01*dz}; // get base frame wrt com
+    Eigen::VectorXd target_com_ee_xyz = start_com_ee_xyz + move_command;
+    
+  // calc IK
+    Eigen::VectorXd target_angles;
+    legs_[footIndex]->computeIK(target_angles, target_com_ee_xyz);
+
+    cmd_[leg_offset + 0].actuator().position().set(target_angles[0]);
+    cmd_[leg_offset + 1].actuator().position().set(target_angles[1]);
+    cmd_[leg_offset + 2].actuator().position().set(target_angles[2]);
+
+    saveCommand();
+    sendCommand();
+  }
+
+  void Quadruped::planFootTraj(int footIndex, double dx, double dy, double dz, double swingTime){
+    loadCommand();
+  // init traj commands
+    int num_waypoints = 3;
+    Eigen::MatrixXd positions(num_joints_per_leg_, num_waypoints);
+    Eigen::MatrixXd velocities = Eigen::MatrixXd::Zero(num_joints_per_leg_, num_waypoints);
+    Eigen::MatrixXd accelerations = Eigen::MatrixXd::Zero(num_joints_per_leg_, num_waypoints);
+    Eigen::VectorXd nan_column = Eigen::VectorXd::Constant(num_joints_per_leg_, std::numeric_limits<double>::quiet_NaN());
+
+  // get last command
+    int leg_offset = footIndex * num_joints_per_leg_;
+    Eigen::VectorXd start_leg_angles(3);
+    start_leg_angles(0) = cmd_[leg_offset + 0].actuator().position().get();
+    start_leg_angles(1) = cmd_[leg_offset + 1].actuator().position().get();
+    start_leg_angles(2) = cmd_[leg_offset + 2].actuator().position().get();
+
+  // calc FK with last sent command, get EndEffector in leg base frame
+    hebi::robot_model::Matrix4dVector frames;
+    legs_[footIndex] -> getKinematics().getFK(HebiFrameTypeEndEffector, start_leg_angles, frames); // I assume this is in the frame of base frame
+    Eigen::Vector3d start_com_ee_xyz = frames[0].topRightCorner<3,1>(); 
+
+  // IK for mid and end position
+    Eigen::Vector3d mid_move = {0.01*dx/2, 0.01*dy/2, 0.01*dz}; // get base frame wrt com
+    Eigen::VectorXd mid_com_ee_xyz = start_com_ee_xyz + mid_move;
+    Eigen::VectorXd mid_leg_angles;
+    legs_[footIndex]->computeIK(mid_leg_angles, mid_com_ee_xyz);
+
+    Eigen::Vector3d end_move = {0.01*dx, 0.01*dy, 0}; // get base frame wrt com
+    Eigen::VectorXd end_com_ee_xyz = start_com_ee_xyz + end_move;
+    Eigen::VectorXd end_leg_angles;
+    legs_[footIndex]->computeIK(end_leg_angles, end_com_ee_xyz);
+
+    positions.col(0) = start_leg_angles;
+    positions.col(1) = mid_leg_angles;
+    positions.col(2) = end_leg_angles;
+
+    velocities.col(1) = nan_column;
+    accelerations.col(1) = nan_column;
+
+    Eigen::VectorXd times(num_waypoints);
+    times << 0, swingTime * 0.5, swingTime;
+
+    swing_trajectories.push_back(trajectory::Trajectory::createUnconstrainedQp(
+        times, positions, &velocities, &accelerations)); 
+
+    trajFootIndex = footIndex;
+  }
+
+  void Quadruped::followFootTraj(int trajFootIndex, double timeSpent){
+    loadCommand();
+
+    Eigen::VectorXd traj_angles(3);
+    Eigen::VectorXd traj_vels(3);
+    Eigen::VectorXd traj_accs(3);
+    swing_trajectories.back()->getState(timeSpent, &traj_angles, &traj_vels, &traj_accs);
+
+    int leg_offset = trajFootIndex * num_joints_per_leg_;
+    cmd_[leg_offset + 0].actuator().position().set(traj_angles(0));
+    cmd_[leg_offset + 1].actuator().position().set(traj_angles(1));
+    cmd_[leg_offset + 2].actuator().position().set(traj_angles(2));
+
+    cmd_[leg_offset + 0].actuator().velocity().set(traj_vels(0));
+    cmd_[leg_offset + 1].actuator().velocity().set(traj_vels(1));
+    cmd_[leg_offset + 2].actuator().velocity().set(traj_vels(2));
+
+    cmd_[leg_offset + 0].actuator().effort().set(traj_accs(0));
+    cmd_[leg_offset + 1].actuator().effort().set(traj_accs(1));
+    cmd_[leg_offset + 2].actuator().effort().set(traj_accs(2));
+
+    saveCommand();
+    sendCommand();
+  }
+
+  void Quadruped::freeze(){
+    loadCommand();
+    saveCommand();
+    sendCommand();
+  }
 
   void Quadruped::sendCommand()
   {

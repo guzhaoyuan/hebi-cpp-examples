@@ -90,9 +90,14 @@ class Quadruped
     bool setGains();
 
     // Public Function below is added by Zhaoyuan, use at your own risk
-    void moveLegs(double lr, double fb, double ud);
-    void moveBody(double lr, double fb, double ud);
-
+    void moveLegs(double dx, double dy, double dz = 0);
+    void moveBody(double dx, double dy, double dz = 0); // move body in cm
+    void moveFootRel(int footIndex, double dx = 0, double dy = 0, double dz = 0); // TODO: make clear about the com coordinate and leg coordinate
+    void moveFootAbs(int footIndex, double dx, double dy, double dz); // TODO: make clear about the com coordinate and leg coordinate
+    void planFootTraj(int footIndex, double dx, double dy, double dz, double swingTime); // plan a triangle path, dz is height, dx,dx is distance reletive to original foot
+    void followFootTraj(int trajFootIndex, double timeSpent);
+    void freeze(); // stay where the robot was commanded
+  
   private:
     // private constructor, it make sense because before construct must make sure group is successfully created
     Quadruped(std::shared_ptr<Group> group, const QuadrupedParameters& params);
@@ -128,7 +133,8 @@ class Quadruped
     // planner trajectories
     std::vector<std::shared_ptr<trajectory::Trajectory>> startup_trajectories;
     std::vector<std::shared_ptr<trajectory::Trajectory>> stance_trajectories;  // used in runTest
-    std::vector<std::shared_ptr<trajectory::Trajectory>> swing_trajectories;   // used in runTest
+    std::vector<std::shared_ptr<trajectory::Trajectory>> swing_trajectories;   // used in runTest and followFootTraj
+    int trajFootIndex; // used to indicate which foot does the trajectory corresponding to
     bool is_exec_traj; // flag to show that it is still running trajectories 
 
     // control constants
