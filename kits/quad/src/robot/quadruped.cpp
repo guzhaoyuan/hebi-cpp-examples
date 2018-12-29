@@ -1251,8 +1251,8 @@ namespace hebi {
       
       // get foot position in com frame, add joy command
       Eigen::Vector3d start_com_ee_xyz = frames[0].topRightCorner<3,1>(); 
-      Eigen::Vector3d joy_command = {-0.01*dx, -0.01*dy, 0.01*dz}; // get base frame wrt com
-      Eigen::VectorXd target_com_ee_xyz = start_com_ee_xyz + joy_command;
+      Eigen::Vector3d move_command = {-0.01*dx, -0.01*dy, 0.01*dz}; // get base frame wrt com
+      Eigen::VectorXd target_com_ee_xyz = start_com_ee_xyz + move_command;
 
       if(legIndex == 1){
         std::cout << "leg "<< legIndex << " foot at " << target_com_ee_xyz << std::endl;
@@ -1372,6 +1372,79 @@ namespace hebi {
     cmd_[leg_offset + 0].actuator().effort().set(traj_accs(0));
     cmd_[leg_offset + 1].actuator().effort().set(traj_accs(1));
     cmd_[leg_offset + 2].actuator().effort().set(traj_accs(2));
+
+    saveCommand();
+    sendCommand();
+  }
+
+  void Quadruped::planBodyTraj(double dx, double dy, double body_move_time){
+    loadCommand();
+  // init traj commands
+    int num_waypoints = 2;
+    Eigen::MatrixXd positions(num_joints_per_leg_, num_waypoints);
+    Eigen::MatrixXd velocities = Eigen::MatrixXd::Zero(num_joints_per_leg_, num_waypoints);
+    Eigen::MatrixXd accelerations = Eigen::MatrixXd::Zero(num_joints_per_leg_, num_waypoints);
+    Eigen::VectorXd nan_column = Eigen::VectorXd::Constant(num_joints_per_leg_, std::numeric_limits<double>::quiet_NaN());
+
+    body_move_trajectories.clear();
+
+    for (auto legIndex : walkingLegs){
+
+      // get last command
+      hebi::robot_model::Matrix4dVector frames;
+      // Eigen::VectorXd start_leg_angles = legs_[legIndex] -> getJointAngle();
+      Eigen::VectorXd start_leg_angles(3);
+      int leg_offset = legIndex * num_joints_per_leg_;
+      start_leg_angles(0) = cmd_[leg_offset + 0].actuator().position().get();
+      start_leg_angles(1) = cmd_[leg_offset + 1].actuator().position().get();
+      start_leg_angles(2) = cmd_[leg_offset + 2].actuator().position().get();
+
+      // calc FK with last sent command, get EndEffector in leg base frame
+      legs_[legIndex] -> getKinematics().getFK(HebiFrameTypeEndEffector, start_leg_angles, frames); // I assume this is in the frame of base frame
+      
+      // get foot position in com frame, add joy command
+      Eigen::Vector3d start_com_ee_xyz = frames[0].topRightCorner<3,1>(); 
+      Eigen::Vector3d move_command = {-0.01*dx, -0.01*dy, 0}; // get base frame wrt com
+      Eigen::VectorXd end_com_ee_xyz = start_com_ee_xyz + move_command;
+
+      // calc IK
+      Eigen::VectorXd end_leg_angles;
+      legs_[legIndex]->computeIK(end_leg_angles, end_com_ee_xyz);
+
+      positions.col(0) = start_leg_angles;
+      positions.col(1) = end_leg_angles;
+
+      Eigen::VectorXd times(num_waypoints);
+      times << 0, body_move_time;
+
+      body_move_trajectories.push_back(trajectory::Trajectory::createUnconstrainedQp(
+          times, positions, &velocities, &accelerations)); 
+    }
+  }
+
+  void Quadruped::followBodyTraj(double timeSpent){
+    loadCommand();
+    int index = 0;
+    for (auto legIndex : walkingLegs){
+      Eigen::VectorXd traj_angles(3);
+      Eigen::VectorXd traj_vels(3);
+      Eigen::VectorXd traj_accs(3);
+
+      body_move_trajectories[index++]->getState(timeSpent, &traj_angles, &traj_vels, &traj_accs);
+
+      int leg_offset = legIndex * num_joints_per_leg_;
+      cmd_[leg_offset + 0].actuator().position().set(traj_angles(0));
+      cmd_[leg_offset + 1].actuator().position().set(traj_angles(1));
+      cmd_[leg_offset + 2].actuator().position().set(traj_angles(2));
+
+      cmd_[leg_offset + 0].actuator().velocity().set(traj_vels(0));
+      cmd_[leg_offset + 1].actuator().velocity().set(traj_vels(1));
+      cmd_[leg_offset + 2].actuator().velocity().set(traj_vels(2));
+
+      cmd_[leg_offset + 0].actuator().effort().set(traj_accs(0));
+      cmd_[leg_offset + 1].actuator().effort().set(traj_accs(1));
+      cmd_[leg_offset + 2].actuator().effort().set(traj_accs(2));
+    }
 
     saveCommand();
     sendCommand();
