@@ -382,7 +382,7 @@ namespace hebi {
     for (int i = 0; i < num_legs_; ++i)
     {
       auto base_frame = legs_[i] -> getBaseFrame();
-      Eigen::Vector4d tmp4(0.50, 0, 0.0, 0); // hard code first
+      Eigen::Vector4d tmp4(0.40, 0, -0.05, 0); // hard code first
       Eigen::VectorXd home_stance_xyz = (base_frame * tmp4).topLeftCorner<3,1>();
       
       legs_[i]->computeIK(goal, home_stance_xyz);
@@ -404,6 +404,7 @@ namespace hebi {
         isReaching = false;
       }
     }
+    saveCommand();
     sendCommand();
     return isReaching;
   }
@@ -419,13 +420,14 @@ namespace hebi {
     for (int i = 0; i < num_legs_; ++i)
     {
       auto base_frame = legs_[i] -> getBaseFrame();
-      if (i == 0)      base_stance_ee_xyz_offset = Eigen::Vector4d(0.0,  0.0, 0, 0);
-      else if (i == 5) base_stance_ee_xyz_offset = Eigen::Vector4d(  0,  0.0, 0, 0);
-      else if (i == 1) base_stance_ee_xyz_offset = Eigen::Vector4d(0.0, -0.0, 0, 0);
-      else if (i == 4) base_stance_ee_xyz_offset = Eigen::Vector4d(  0, -0.0, 0, 0);
+      if (i == 0)      base_stance_ee_xyz_offset = Eigen::Vector4d(0.0, -0.07, 0, 0);
+      else if (i == 5) base_stance_ee_xyz_offset = Eigen::Vector4d(  0,  0.07, 0, 0);
+      else if (i == 1) base_stance_ee_xyz_offset = Eigen::Vector4d(0.0,  0.07, 0, 0);
+      else if (i == 4) base_stance_ee_xyz_offset = Eigen::Vector4d(  0, -0.07, 0, 0);
       else base_stance_ee_xyz_offset = Eigen::Vector4d(0,0,0,0);
         
-      Eigen::VectorXd home_stance_xyz = (base_frame * (base_stance_ee_xyz+base_stance_ee_xyz_offset)).topLeftCorner<3,1>();
+      // Eigen::VectorXd home_stance_xyz = (base_frame * (base_stance_ee_xyz+base_stance_ee_xyz_offset)).topLeftCorner<3,1>();
+      Eigen::VectorXd home_stance_xyz = (base_frame * base_stance_ee_xyz).topLeftCorner<3,1>();
       legs_[i]->computeIK(goal, home_stance_xyz);
       int leg_offset = i * num_joints_per_leg_;
       cmd_[leg_offset + 0].actuator().position().set(goal(0));
@@ -1454,6 +1456,158 @@ namespace hebi {
     loadCommand();
     saveCommand();
     sendCommand();
+  }
+
+  void Quadruped::planWaveGait(){
+    wave_gait_trajectories.clear();
+
+    const int totalSteps = 180;
+
+    for (auto legIndex : walkingLegs){ // iterate thru all legs, set all positions for each leg within a loop
+      // init traj commands
+      Eigen::MatrixXd positions(num_joints_per_leg_, totalSteps);
+      // Eigen::MatrixXd velocities = Eigen::MatrixXd::Constant(num_joints_per_leg_, totalSteps, std::numeric_limits<double>::quiet_NaN());
+      // Eigen::MatrixXd accelerations = Eigen::MatrixXd::Constant(num_joints_per_leg_, totalSteps, std::numeric_limits<double>::quiet_NaN());
+      Eigen::MatrixXd velocities = Eigen::MatrixXd::Zero(num_joints_per_leg_, totalSteps);
+      Eigen::MatrixXd accelerations = Eigen::MatrixXd::Zero(num_joints_per_leg_, totalSteps);
+      Eigen::VectorXd times(totalSteps);
+      Eigen::VectorXd nan_column = Eigen::VectorXd::Constant(num_joints_per_leg_, std::numeric_limits<double>::quiet_NaN());
+      Eigen::VectorXd zero_column = Eigen::VectorXd::Constant(num_joints_per_leg_, 0);
+
+      for(int timeStep = 0; timeStep<totalSteps; timeStep++){
+        planBodyFootTraj(legIndex, timeStep, positions);
+        times(timeStep) = 0 + timeStep * totalTime / totalSteps;
+      }
+
+      // set vel and acc for all legs
+      velocities.col(0) = zero_column;
+      velocities.col(179) = zero_column;
+      accelerations.col(0) = zero_column;
+      accelerations.col(179) = zero_column;
+
+      // for each leg push to traj
+      wave_gait_trajectories.push_back(trajectory::Trajectory::createUnconstrainedQp(
+          times, positions, &velocities, &accelerations));
+    }
+    // std::cout<<"trajectory size: "<<wave_gait_trajectories.size()<<std::endl;
+  }
+  
+  void Quadruped::planBodyFootTraj(int legIndex, int timeStep, Eigen::MatrixXd &positions){
+    assert(legIndex == 5 || legIndex == 1 || legIndex == 4 || legIndex == 0);
+    loadCommand();// load command from stance position, plan all the traj from the stance pos
+
+    // position info based on timeStep
+    double percentage = (double)timeStep/180;
+    double theta = percentage*3.1415;
+    double dyBody = 4*sin(theta); // hardcode first
+    double dxBody = stepSize*percentage;
+    double dxFoot;
+    double dzFoot;
+    if(legIndex == 5)
+    {
+      double phi = (double)timeStep/45*3.1415;
+      if(percentage<0.25){
+        dxFoot = stepSize*(1-cos(phi))/2;
+        dzFoot = stepSize*sin(phi);
+      }else{
+        dxFoot = stepSize;
+        dzFoot = 0;
+      }
+      // std::cout<<dxFoot<<" - "<<dzFoot<<" @ "<<timeStep<< std::endl;
+    }else if(legIndex == 1)
+    {
+      double phi = ((double)timeStep - 45)/45*3.1415;
+      if(percentage<0.25){
+        dxFoot = 0;
+        dzFoot = 0;
+      }else if(percentage<0.5){
+        dxFoot = stepSize*(1-cos(phi))/2;
+        dzFoot = stepSize*sin(phi);
+      }else{
+        dxFoot = stepSize;
+        dzFoot = 0;
+      }
+      // std::cout<<dxFoot<<" - "<<dzFoot<<" @ "<<timeStep<< std::endl;
+    }else if(legIndex == 4)
+    {
+      double phi = ((double)timeStep - 90)/45*3.1415;
+      if(percentage<0.5){
+        dxFoot = 0;
+        dzFoot = 0;
+      }else if(percentage<0.75){
+        dxFoot = stepSize*(1-cos(phi))/2;
+        dzFoot = stepSize*sin(phi);
+      }else{
+        dxFoot = stepSize;
+        dzFoot = 0;
+      }
+      // std::cout<<dxFoot<<" - "<<dzFoot<<" @ "<<timeStep<< std::endl;
+    }else if(legIndex == 0)
+    {
+      double phi = ((double)timeStep - 135)/45*3.1415;
+      if(percentage<0.75){
+        dxFoot = 0;
+        dzFoot = 0;
+      }else{
+        dxFoot = stepSize*(1-cos(phi))/2;
+        dzFoot = stepSize*sin(phi);
+      }
+      // std::cout<<dxFoot<<" - "<<dzFoot<<" @ "<<timeStep<< std::endl;
+    }
+
+    hebi::robot_model::Matrix4dVector frames;
+
+    Eigen::VectorXd start_leg_angles(3);
+    int leg_offset = legIndex * num_joints_per_leg_;
+    start_leg_angles(0) = cmd_[leg_offset + 0].actuator().position().get();
+    start_leg_angles(1) = cmd_[leg_offset + 1].actuator().position().get();
+    start_leg_angles(2) = cmd_[leg_offset + 2].actuator().position().get();
+
+    // calc FK with last sent command, get EndEffector in leg base frame
+    legs_[legIndex] -> getKinematics().getFK(HebiFrameTypeEndEffector, start_leg_angles, frames); // I assume this is in the frame of base frame
+    
+    // get foot position in com frame, add command
+    Eigen::Vector3d start_com_ee_xyz = frames[0].topRightCorner<3,1>(); 
+    Eigen::Vector3d move_command = {dxFoot - dxBody, -dyBody, dzFoot};
+    Eigen::VectorXd end_com_ee_xyz = start_com_ee_xyz + move_command;
+    // calc IK for Foot
+    Eigen::VectorXd end_leg_angles;
+    legs_[legIndex]->computeIK(end_leg_angles, end_com_ee_xyz);
+
+
+    positions.col(timeStep) = end_leg_angles;
+
+  }
+
+  void Quadruped::followWaveGait(double timeSpent){
+    assert(timeSpent <= totalTime);
+
+    loadCommand();
+    // std::cout<<wave_gait_trajectories.size()<<std::endl;
+    int index = 0;
+    for (auto legIndex : walkingLegs){
+      Eigen::VectorXd traj_angles(3);
+      Eigen::VectorXd traj_vels(3);
+      Eigen::VectorXd traj_accs(3);
+
+      wave_gait_trajectories[index++]->getState(timeSpent, &traj_angles, &traj_vels, &traj_accs);
+
+      int leg_offset = legIndex * num_joints_per_leg_;
+      cmd_[leg_offset + 0].actuator().position().set(traj_angles(0));
+      cmd_[leg_offset + 1].actuator().position().set(traj_angles(1));
+      cmd_[leg_offset + 2].actuator().position().set(traj_angles(2));
+
+      cmd_[leg_offset + 0].actuator().velocity().set(traj_vels(0));
+      cmd_[leg_offset + 1].actuator().velocity().set(traj_vels(1));
+      cmd_[leg_offset + 2].actuator().velocity().set(traj_vels(2));
+
+      cmd_[leg_offset + 0].actuator().effort().set(traj_accs(0));
+      cmd_[leg_offset + 1].actuator().effort().set(traj_accs(1));
+      cmd_[leg_offset + 2].actuator().effort().set(traj_accs(2));
+    }
+
+    saveCommand();
+    // sendCommand();
   }
 
   void Quadruped::sendCommand()

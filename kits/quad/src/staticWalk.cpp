@@ -20,7 +20,8 @@ enum ctrl_state_type {
   QUAD_CTRL_STAND_UP3,
 
   QUAD_STATIC_WALK,         // <- entry, move base and move four legs seperately
-  
+  QUAD_WAVE_GAIT,           // <- entry, wave gait, move base and one leg simualtanuously
+
   CTRL_STATES_COUNT
 };
 
@@ -64,7 +65,6 @@ int main(int argc, char** argv)
   quadruped -> setGains();
 
   // INIT STEP FINAL: start control state machine
-  // input command from joystick (hebi's input manager use vector3f, i think use vector3d would be better)
   Eigen::Vector3f translation_velocity_cmd;
   translation_velocity_cmd.setZero();
   Eigen::Vector3f rotation_velocity_cmd;
@@ -86,7 +86,7 @@ int main(int argc, char** argv)
   // the main control thread
   ctrl_state_type cur_ctrl_state = QUAD_CTRL_STAND_UP1;
   static_walk_state cur_walk_state = START;
-  // ctrl_state_type cur_ctrl_state = QUAD_CTRL_ORIENT;  // save some energy 
+
   auto prev_time = std::chrono::steady_clock::now();
   // Get dt (in seconds)
   std::chrono::duration<double> dt = std::chrono::seconds(0);
@@ -95,9 +95,12 @@ int main(int argc, char** argv)
   // variables used in normal run test
   Eigen::Vector3d grav_vec;
   Eigen::VectorXd leg_angles;
-  double leg_swing_time = 3;   // need to be tested
-  double body_move_time = 2;
   bool isFinished;
+  // variable used in static walk
+  double leg_swing_time = 3;
+  double body_move_time = 2;
+  // variable used in wave gait
+  double totalTime = 20; // time spent to move forward one step
   // some variables used in state passive_orient
   Eigen::Matrix3d bodyR, balance_body_R, diff_body_R;
   Eigen::Vector3d euler;
@@ -166,7 +169,8 @@ int main(int argc, char** argv)
         if (state_run_time.count() >= startup_seconds)
         {
           quadruped -> startBodyRUpdate();
-          cur_ctrl_state = QUAD_STATIC_WALK;
+          cur_ctrl_state = QUAD_WAVE_GAIT;
+          first_time_enter = true;
           state_enter_time = std::chrono::steady_clock::now(); 
         }
         break;
@@ -388,14 +392,37 @@ int main(int argc, char** argv)
       }
 
 
+      case QUAD_WAVE_GAIT:
+      {
+        state_curr_time = std::chrono::steady_clock::now();
+        state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
+        
+        // make sure the time is strictly within totalTime
+        if (state_run_time.count() >= quadruped -> getTotalTime()){
+          state_enter_time = std::chrono::steady_clock::now();
+          first_time_enter = true;
+          break;
+        }
+
+        if(first_time_enter){
+          quadruped -> planWaveGait();
+          first_time_enter = false;
+        }
+
+        quadruped -> followWaveGait(state_run_time.count());
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        // quadruped -> freeze();
+        break;
+      }
+
       case CTRL_STATES_COUNT:
       default:
+        quadruped -> freeze();
         break;
 
     }
   }
   
   // control_execute.store(false, std::memory_order_release);
-  // control_thread.join();
   return 0;
 }

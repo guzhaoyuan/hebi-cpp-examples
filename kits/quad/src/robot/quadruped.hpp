@@ -100,7 +100,13 @@ class Quadruped
     void planBodyTraj(double dx, double dy, double body_move_time);
     void followBodyTraj(double timeSpent);
     void freeze(); // stay where the robot was commanded
-  
+
+    // function for wave gait by zhaoyuan
+    void followWaveGait(double timeSpent);
+    void planWaveGait();
+    double getTotalTime(){return totalTime;}
+    void planBodyFootTraj(int legIndex, int timeStep, Eigen::MatrixXd &positions);
+
   private:
     // private constructor, it make sense because before construct must make sure group is successfully created
     Quadruped(std::shared_ptr<Group> group, const QuadrupedParameters& params);
@@ -138,6 +144,8 @@ class Quadruped
     std::vector<std::shared_ptr<trajectory::Trajectory>> stance_trajectories;  // used in runTest
     std::vector<std::shared_ptr<trajectory::Trajectory>> swing_trajectories;   // used in runTest and followFootTraj
     std::vector<std::shared_ptr<trajectory::Trajectory>> body_move_trajectories;  // used in runTest
+    std::vector<std::shared_ptr<trajectory::Trajectory>> wave_gait_trajectories;  // used in runTest
+
     int trajFootIndex; // used to indicate which foot does the trajectory corresponding to
     bool is_exec_traj; // flag to show that it is still running trajectories 
 
@@ -169,6 +177,10 @@ class Quadruped
     // leg Definition
     const std::vector<int> walkingLegs = {0, 1, 4, 5};
     const std::vector<int> manipulateLegs = {2, 3};
+
+    // wave gait params
+    const double totalTime = 40;
+    const double stepSize = 20;
 
     Eigen::Vector4d base_stance_ee_xyz; // expressed in base motor's frame
     Eigen::Vector4d base_stance_ee_xyz_offset; // expressed in base motor's frame
