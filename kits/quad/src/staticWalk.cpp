@@ -410,7 +410,7 @@ int main(int argc, char** argv)
         }
 
         quadruped -> followWaveGait(state_run_time.count());
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        // std::this_thread::sleep_for(std::chrono::milliseconds(20));
         // quadruped -> freeze();
         break;
       }

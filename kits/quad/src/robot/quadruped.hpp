@@ -106,6 +106,8 @@ class Quadruped
     void planWaveGait();
     double getTotalTime(){return totalTime;}
     void planBodyFootTraj(int legIndex, int timeStep, Eigen::MatrixXd &positions);
+    void saveStanceCommand();
+    void loadStanceCommand();
 
   private:
     // private constructor, it make sense because before construct must make sure group is successfully created
@@ -120,6 +122,7 @@ class Quadruped
     std::shared_ptr<Group> group_;
     GroupCommand cmd_;
     GroupCommand saved_cmd_;
+    GroupCommand saved_stance_cmd_;
 
     // leg info
     std::vector<std::unique_ptr<QuadLeg> > legs_;
@@ -179,7 +182,7 @@ class Quadruped
     const std::vector<int> manipulateLegs = {2, 3};
 
     // wave gait params
-    const double totalTime = 40;
+    const double totalTime = 20;
     const double stepSize = 20;
 
     Eigen::Vector4d base_stance_ee_xyz; // expressed in base motor's frame

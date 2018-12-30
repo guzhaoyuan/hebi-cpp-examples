@@ -34,7 +34,7 @@ namespace hebi {
   }
 
   Quadruped::Quadruped(std::shared_ptr<Group> group, const QuadrupedParameters& params)
-  : group_(group), params_(params), cmd_(group_ ? group_->size() : 1), saved_cmd_(group_ ? group_->size() : 1)
+  : group_(group), params_(params), cmd_(group_ ? group_->size() : 1), saved_cmd_(group_ ? group_->size() : 1), saved_stance_cmd_(group_ ? group_->size() : 1)
   {
     Eigen::Vector3d zero_vec = Eigen::Vector3d::Zero();
     legs_.emplace_back(new QuadLeg(30.0 * M_PI / 180.0, 0.2375, zero_vec, params, 0, QuadLeg::LegConfiguration::Left));
@@ -448,6 +448,7 @@ namespace hebi {
     lifeManipulatorLegs();
 
     saveCommand();
+    saveStanceCommand();
     sendCommand();
     return isReaching;   
   }
@@ -1461,29 +1462,35 @@ namespace hebi {
   void Quadruped::planWaveGait(){
     wave_gait_trajectories.clear();
 
-    const int totalSteps = 180;
+    const int totalSteps = 24;
 
     for (auto legIndex : walkingLegs){ // iterate thru all legs, set all positions for each leg within a loop
       // init traj commands
-      Eigen::MatrixXd positions(num_joints_per_leg_, totalSteps);
+      Eigen::MatrixXd positions(num_joints_per_leg_, totalSteps+1);
       // Eigen::MatrixXd velocities = Eigen::MatrixXd::Constant(num_joints_per_leg_, totalSteps, std::numeric_limits<double>::quiet_NaN());
       // Eigen::MatrixXd accelerations = Eigen::MatrixXd::Constant(num_joints_per_leg_, totalSteps, std::numeric_limits<double>::quiet_NaN());
-      Eigen::MatrixXd velocities = Eigen::MatrixXd::Zero(num_joints_per_leg_, totalSteps);
-      Eigen::MatrixXd accelerations = Eigen::MatrixXd::Zero(num_joints_per_leg_, totalSteps);
-      Eigen::VectorXd times(totalSteps);
+      Eigen::MatrixXd velocities = Eigen::MatrixXd::Zero(num_joints_per_leg_, totalSteps+1);
+      Eigen::MatrixXd accelerations = Eigen::MatrixXd::Zero(num_joints_per_leg_, totalSteps+1);
+      Eigen::VectorXd times(totalSteps+1);
       Eigen::VectorXd nan_column = Eigen::VectorXd::Constant(num_joints_per_leg_, std::numeric_limits<double>::quiet_NaN());
-      Eigen::VectorXd zero_column = Eigen::VectorXd::Constant(num_joints_per_leg_, 0);
+      Eigen::VectorXd zero_column = Eigen::VectorXd::Zero(num_joints_per_leg_);
 
-      for(int timeStep = 0; timeStep<totalSteps; timeStep++){
+      for(int timeStep = 0; timeStep<=totalSteps; timeStep++){
         planBodyFootTraj(legIndex, timeStep, positions);
         times(timeStep) = 0 + timeStep * totalTime / totalSteps;
       }
 
+      double d2t = 2 * totalTime / totalSteps;
       // set vel and acc for all legs
-      velocities.col(0) = zero_column;
-      velocities.col(179) = zero_column;
-      accelerations.col(0) = zero_column;
-      accelerations.col(179) = zero_column;
+      for(int timeStep = 1; timeStep<totalSteps; timeStep++){
+        velocities.col(timeStep) = (positions.col(timeStep+1)-positions.col(timeStep-1))/d2t;
+        // std::cout<< "traj_vels" << velocities.col(timeStep) << std::endl;
+      }
+
+      for(int timeStep = 1; timeStep<totalSteps; timeStep++){
+        accelerations.col(timeStep) = (velocities.col(timeStep+1)-velocities.col(timeStep-1))/d2t;
+        // std::cout<< "traj_accs" << accelerations.col(timeStep) << std::endl;
+      }
 
       // for each leg push to traj
       wave_gait_trajectories.push_back(trajectory::Trajectory::createUnconstrainedQp(
@@ -1494,21 +1501,23 @@ namespace hebi {
   
   void Quadruped::planBodyFootTraj(int legIndex, int timeStep, Eigen::MatrixXd &positions){
     assert(legIndex == 5 || legIndex == 1 || legIndex == 4 || legIndex == 0);
-    loadCommand();// load command from stance position, plan all the traj from the stance pos
+    
+    loadStanceCommand();// load command from stance position, plan all the traj from the stance pos
 
     // position info based on timeStep
-    double percentage = (double)timeStep/180;
-    double theta = percentage*3.1415;
-    double dyBody = 4*sin(theta); // hardcode first
+    double percentage = (double)timeStep/24;
+    double theta = percentage*M_PI*2;
+    double dyBody = 4*std::sin(theta); // hardcode first
+    // std::cout<<dyBody<<std::endl;
     double dxBody = stepSize*percentage;
     double dxFoot;
     double dzFoot;
     if(legIndex == 5)
     {
-      double phi = (double)timeStep/45*3.1415;
+      double phi = (double)timeStep/6*M_PI;
       if(percentage<0.25){
-        dxFoot = stepSize*(1-cos(phi))/2;
-        dzFoot = stepSize*sin(phi);
+        dxFoot = stepSize*(1-std::cos(phi))/2;
+        dzFoot = stepSize*std::sin(phi);
       }else{
         dxFoot = stepSize;
         dzFoot = 0;
@@ -1516,13 +1525,13 @@ namespace hebi {
       // std::cout<<dxFoot<<" - "<<dzFoot<<" @ "<<timeStep<< std::endl;
     }else if(legIndex == 1)
     {
-      double phi = ((double)timeStep - 45)/45*3.1415;
+      double phi = ((double)timeStep - 6)/6*M_PI;
       if(percentage<0.25){
         dxFoot = 0;
         dzFoot = 0;
       }else if(percentage<0.5){
-        dxFoot = stepSize*(1-cos(phi))/2;
-        dzFoot = stepSize*sin(phi);
+        dxFoot = stepSize*(1-std::cos(phi))/2;
+        dzFoot = stepSize*std::sin(phi);
       }else{
         dxFoot = stepSize;
         dzFoot = 0;
@@ -1530,13 +1539,13 @@ namespace hebi {
       // std::cout<<dxFoot<<" - "<<dzFoot<<" @ "<<timeStep<< std::endl;
     }else if(legIndex == 4)
     {
-      double phi = ((double)timeStep - 90)/45*3.1415;
+      double phi = ((double)timeStep - 12)/6*M_PI;
       if(percentage<0.5){
         dxFoot = 0;
         dzFoot = 0;
       }else if(percentage<0.75){
-        dxFoot = stepSize*(1-cos(phi))/2;
-        dzFoot = stepSize*sin(phi);
+        dxFoot = stepSize*(1-std::cos(phi))/2;
+        dzFoot = stepSize*std::sin(phi);
       }else{
         dxFoot = stepSize;
         dzFoot = 0;
@@ -1544,16 +1553,18 @@ namespace hebi {
       // std::cout<<dxFoot<<" - "<<dzFoot<<" @ "<<timeStep<< std::endl;
     }else if(legIndex == 0)
     {
-      double phi = ((double)timeStep - 135)/45*3.1415;
+      double phi = ((double)timeStep - 18)/6*M_PI;
       if(percentage<0.75){
         dxFoot = 0;
         dzFoot = 0;
       }else{
-        dxFoot = stepSize*(1-cos(phi))/2;
-        dzFoot = stepSize*sin(phi);
+        dxFoot = stepSize*(1-std::cos(phi))/2;
+        dzFoot = stepSize*std::sin(phi);
       }
       // std::cout<<dxFoot<<" - "<<dzFoot<<" @ "<<timeStep<< std::endl;
     }
+
+    // std::cout<<"Base: "<<dxBody<<" - "<<dyBody<<", Foot"<<legIndex<<": "<<dxFoot<<" - "<<dzFoot<<" @ "<<timeStep<< std::endl;
 
     hebi::robot_model::Matrix4dVector frames;
 
@@ -1568,8 +1579,13 @@ namespace hebi {
     
     // get foot position in com frame, add command
     Eigen::Vector3d start_com_ee_xyz = frames[0].topRightCorner<3,1>(); 
-    Eigen::Vector3d move_command = {dxFoot - dxBody, -dyBody, dzFoot};
-    Eigen::VectorXd end_com_ee_xyz = start_com_ee_xyz + move_command;
+    Eigen::Vector3d move_command = {dxFoot-dxBody, -dyBody, dzFoot};
+    Eigen::VectorXd end_com_ee_xyz = start_com_ee_xyz + move_command * 0.01;
+
+    // std::cout << "Foot"<< legIndex <<" xyz:\n" << start_com_ee_xyz <<" @ "<<timeStep<< std::endl;
+    // if(legIndex == 5)
+    //   std::cout << "Foot"<< legIndex <<" y:" << end_com_ee_xyz(1) <<" \t@ "<<timeStep<< std::endl;
+
     // calc IK for Foot
     Eigen::VectorXd end_leg_angles;
     legs_[legIndex]->computeIK(end_leg_angles, end_com_ee_xyz);
@@ -1583,7 +1599,7 @@ namespace hebi {
     assert(timeSpent <= totalTime);
 
     loadCommand();
-    // std::cout<<wave_gait_trajectories.size()<<std::endl;
+    
     int index = 0;
     for (auto legIndex : walkingLegs){
       Eigen::VectorXd traj_angles(3);
@@ -1604,10 +1620,34 @@ namespace hebi {
       cmd_[leg_offset + 0].actuator().effort().set(traj_accs(0));
       cmd_[leg_offset + 1].actuator().effort().set(traj_accs(1));
       cmd_[leg_offset + 2].actuator().effort().set(traj_accs(2));
+
+      // calc FK for debug
+      hebi::robot_model::Matrix4dVector frames;
+      legs_[legIndex] -> getKinematics().getFK(HebiFrameTypeEndEffector, traj_angles, frames); // I assume this is in the frame of base frame
+      Eigen::Vector3d cmd_com_ee_xyz = frames[0].topRightCorner<3,1>();
+      if(legIndex == 5 && (timeSpent >= totalTime-1 || timeSpent<=1))
+        std::cout << "Foot"<< legIndex <<" y:" << cmd_com_ee_xyz(1) << "\ttraj_vels" << traj_vels(0) << "@" << timeSpent << std::endl;
     }
 
     saveCommand();
-    // sendCommand();
+    sendCommand();
+  }
+
+  void Quadruped::saveStanceCommand(){
+    for (int i = 0; i < num_legs_*num_joints_per_leg_; i++)
+    {
+      saved_stance_cmd_[i].actuator().position().set(cmd_[i].actuator().position().get());
+      saved_stance_cmd_[i].actuator().velocity().set(cmd_[i].actuator().velocity().get());
+      saved_stance_cmd_[i].actuator().effort().set(cmd_[i].actuator().effort().get());
+    }
+  }
+  void Quadruped::loadStanceCommand(){
+    for (int i = 0; i < num_legs_ * num_joints_per_leg_; i++)
+    {
+      cmd_[i].actuator().position().set(saved_stance_cmd_[i].actuator().position().get());
+      cmd_[i].actuator().velocity().set(saved_stance_cmd_[i].actuator().velocity().get());
+      cmd_[i].actuator().effort().set(saved_stance_cmd_[i].actuator().effort().get());
+    }
   }
 
   void Quadruped::sendCommand()
