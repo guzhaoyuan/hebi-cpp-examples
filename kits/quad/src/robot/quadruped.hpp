@@ -109,6 +109,10 @@ class Quadruped
     void saveStanceCommand();
     void loadStanceCommand();
 
+    // function for dynamic walk by zhaoyuan
+    void planDynamicGait();
+    void followDynamicGait(double timeSpent);
+
   private:
     // private constructor, it make sense because before construct must make sure group is successfully created
     Quadruped(std::shared_ptr<Group> group, const QuadrupedParameters& params);

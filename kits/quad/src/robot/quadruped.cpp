@@ -1658,6 +1658,22 @@ namespace hebi {
     sendCommand();
   }
 
+  // the function is invoked @ 4 feet on ground
+  // plan half step into the future
+  // either step forward or keep stationary
+  void Quadruped::planDynamicGait(){ 
+    // first generate two offset from stance for virtual feet Ldx, Ldz, Rdx, Rdz
+    // if forward, dx != 0
+    // if stationary, dx = 0
+    // second IK for each feet and push to trajectory
+
+
+  }
+
+  void Quadruped::followDynamicGait(double timeSpent){
+
+  }
+
   void Quadruped::saveStanceCommand(){
     for (int i = 0; i < num_legs_*num_joints_per_leg_; i++)
     {

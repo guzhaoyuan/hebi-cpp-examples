@@ -69,22 +69,16 @@ int main(int argc, char** argv)
 
   // the main control thread
   ctrl_state_type cur_ctrl_state = QUAD_CTRL_STAND_UP1;
-  static_walk_state cur_walk_state = START;
 
   auto prev_time = std::chrono::steady_clock::now();
   // Get dt (in seconds)
-  std::chrono::duration<double> dt = std::chrono::seconds(0);
-
+  std::chrono::duration<double> dt;
 
   // variables used in normal run test
   Eigen::Vector3d grav_vec;
   Eigen::VectorXd leg_angles;
   bool isFinished;
-  // variable used in static walk
-  double leg_swing_time = 3;
-  double body_move_time = 2;
-  // variable used in wave gait
-  double totalTime = 20; // time spent to move forward one step
+
   // some variables used in state passive_orient
   Eigen::Matrix3d bodyR, balance_body_R, diff_body_R;
   Eigen::Vector3d euler;
@@ -100,7 +94,7 @@ int main(int argc, char** argv)
   while (control_execute.load(std::memory_order_acquire)) // I have no idea why this not working after remove Q application
   // while(true)
   {    
-    // Wait!
+    // Wait to make sure the loop frequency
     auto now_time = std::chrono::steady_clock::now();
     auto need_to_wait = std::max(0, (int)std::chrono::duration_cast<std::chrono::milliseconds>(prev_time + std::chrono::milliseconds(interval_ms) - now_time).count());
     std::this_thread::sleep_for(std::chrono::milliseconds(need_to_wait));
@@ -167,10 +161,11 @@ int main(int argc, char** argv)
         }
 
         if(first_time_enter){
+          quadruped -> planDynamicGait();
           first_time_enter = false;
         }
 
-
+        quadruped -> followDynamicGait(state_run_time.count());
 
         break;
       }
