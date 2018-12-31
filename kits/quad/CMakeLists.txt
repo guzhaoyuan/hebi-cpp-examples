@@ -66,26 +66,26 @@ SET(STATICWALKSOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/src/xml_util/xml_helpers.cpp
 )
 
-add_executable(quadruped_control ${SOURCES} $<TARGET_OBJECTS:quadruped_core>)
-add_executable(testIK ${TESTSOURCES} $<TARGET_OBJECTS:quadruped_core>)
+# add_executable(quadruped_control ${SOURCES} $<TARGET_OBJECTS:quadruped_core>)
+# add_executable(testIK ${TESTSOURCES} $<TARGET_OBJECTS:quadruped_core>)
 add_executable(staticWalk ${STATICWALKSOURCES} $<TARGET_OBJECTS:quadruped_core>)
-qt5_use_modules(quadruped_control Core Gui Widgets)
-qt5_use_modules(testIK Core Gui Widgets)
+# qt5_use_modules(quadruped_control Core Gui Widgets)
+# qt5_use_modules(testIK Core Gui Widgets)
 
 # link hebi library
 if (WIN32) 
 target_link_libraries( quadruped_control hebi kernel32 ) # kernel32 for sleep commands.
 else()
-target_link_libraries( quadruped_control hebi hebic++ m pthread)
-target_link_libraries( testIK hebi hebic++ m pthread)
+# target_link_libraries( quadruped_control hebi hebic++ m pthread)
+# target_link_libraries( testIK hebi hebic++ m pthread)
 target_link_libraries( staticWalk hebi hebic++ m pthread)
 endif()
 
 # very fancy tools
 # Add ultra-conservative warnings.
-if ( CMAKE_COMPILER_IS_GNUCC )
-  set_property( TARGET quadruped_control APPEND_STRING PROPERTY COMPILE_FLAGS " -Wall -Wno-int-in-bool-context " )
-endif ( CMAKE_COMPILER_IS_GNUCC )
+# if ( CMAKE_COMPILER_IS_GNUCC )
+#   set_property( TARGET quadruped_control APPEND_STRING PROPERTY COMPILE_FLAGS " -Wall -Wno-int-in-bool-context " )
+# endif ( CMAKE_COMPILER_IS_GNUCC )
 # For Windows, we copy the .dll file into the binary directory so that we don't have to set the PATH variable.
 if (WIN32)
 add_custom_command( TARGET quadruped_control POST_BUILD
@@ -94,6 +94,6 @@ add_custom_command( TARGET quadruped_control POST_BUILD
   $<TARGET_FILE_DIR:quadruped_control>)
 endif()
 
-add_custom_command(TARGET quadruped_control POST_BUILD
+add_custom_command(TARGET staticWalk POST_BUILD
                    COMMAND ${CMAKE_COMMAND} -E copy_directory
-                       ${CMAKE_CURRENT_SOURCE_DIR}/resources/ $<TARGET_FILE_DIR:quadruped_control>/)
+                       ${CMAKE_CURRENT_SOURCE_DIR}/resources/ $<TARGET_FILE_DIR:staticWalk>/)
