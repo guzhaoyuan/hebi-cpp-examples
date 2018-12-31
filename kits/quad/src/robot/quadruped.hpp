@@ -182,8 +182,8 @@ class Quadruped
     const std::vector<int> manipulateLegs = {2, 3};
 
     // wave gait params
-    const double totalTime = 20;
-    const double stepSize = 20;
+    const double totalTime = 10;
+    const double stepSize = 16;
 
     Eigen::Vector4d base_stance_ee_xyz; // expressed in base motor's frame
     Eigen::Vector4d base_stance_ee_xyz_offset; // expressed in base motor's frame

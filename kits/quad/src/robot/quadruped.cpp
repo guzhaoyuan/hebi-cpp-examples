@@ -45,7 +45,7 @@ namespace hebi {
     legs_.emplace_back(new QuadLeg(-150.0 * M_PI / 180.0, 0.2375, zero_vec, params, 5, QuadLeg::LegConfiguration::Right));
 
 
-    base_stance_ee_xyz = Eigen::Vector4d(0.50f, 0.0f, -0.15f, 0); // expressed in base motor's frame
+    base_stance_ee_xyz = Eigen::Vector4d(0.50f, 0.0f, -0.2f, 0); // expressed in base motor's frame
     foot_bar_y = 0.55f/2 + bar_y;                   //  \ 
     foot_bar_x = 0.55f/2*sqrt(3) + bar_x;           //  |  shoud be the same 
     nominal_height_z = 0.23f;                       //  /
@@ -382,7 +382,7 @@ namespace hebi {
     for (int i = 0; i < num_legs_; ++i)
     {
       auto base_frame = legs_[i] -> getBaseFrame();
-      Eigen::Vector4d tmp4(0.40, 0, -0.05, 0); // hard code first
+      Eigen::Vector4d tmp4(0.50, 0, -0.05, 0); // hard code first
       Eigen::VectorXd home_stance_xyz = (base_frame * tmp4).topLeftCorner<3,1>();
       
       legs_[i]->computeIK(goal, home_stance_xyz);
@@ -1507,17 +1507,37 @@ namespace hebi {
     // position info based on timeStep
     double percentage = (double)timeStep/24;
     double theta = percentage*M_PI*2;
-    double dyBody = 4*std::sin(theta); // hardcode first
-    // std::cout<<dyBody<<std::endl;
-    double dxBody = stepSize*percentage;
+    double dyBody = 8*std::sin(theta); // hardcode first
+    // double dxBody = stepSize*percentage;
+    double dxBody;
+    if(timeStep<=3){
+      double alpha = (double)timeStep / 3 * M_PI / 2; // 0 -> M_PI/2
+      dxBody = 4*stepSize/6*std::sin(alpha);
+    }else if(timeStep <= 9){
+      double alpha = (double)(timeStep - 6) / 3 * M_PI / 2; // -M_PI/2 -> M_PI/2
+      dxBody = 4*stepSize/6 - stepSize * (std::sin(alpha) + 1)/2;
+    }else if(timeStep <= 15){
+      double alpha = (double)(timeStep - 12) / 3 * M_PI / 2; // -M_PI/2 -> M_PI/2
+      dxBody = -4*stepSize/12 + stepSize *5/3 * (std::sin(alpha) + 1)/2;
+    }else if(timeStep <= 21){
+      double alpha = (double)(timeStep - 18) / 3 * M_PI / 2; // -M_PI/2 -> M_PI/2
+      dxBody = 4*stepSize/3 - stepSize * (std::sin(alpha) + 1)/2;
+    }else{
+      double alpha = (double)(timeStep - 24) / 3 * M_PI / 2; // -M_PI/2 -> 0
+      dxBody = stepSize + 4*stepSize/6*std::sin(alpha);
+    }
+
     double dxFoot;
     double dzFoot;
     if(legIndex == 5)
     {
-      double phi = (double)timeStep/6*M_PI;
-      if(percentage<0.25){
+      if(timeStep <= 2){
+        dxFoot = 0;
+        dzFoot = 0;
+      }else if(timeStep <= 4){
+        double phi = ((double)timeStep - 2)/2*M_PI; // [1,5] -> [0, M_PI]
         dxFoot = stepSize*(1-std::cos(phi))/2;
-        dzFoot = stepSize*std::sin(phi);
+        dzFoot = 20*std::sin(phi);
       }else{
         dxFoot = stepSize;
         dzFoot = 0;
@@ -1525,13 +1545,13 @@ namespace hebi {
       // std::cout<<dxFoot<<" - "<<dzFoot<<" @ "<<timeStep<< std::endl;
     }else if(legIndex == 1)
     {
-      double phi = ((double)timeStep - 6)/6*M_PI;
-      if(percentage<0.25){
+      if(timeStep <= 8){
         dxFoot = 0;
         dzFoot = 0;
-      }else if(percentage<0.5){
+      }else if(timeStep <= 10){
+        double phi = ((double)timeStep - 8)/2*M_PI; // [7, 11] -> [0, M_PI]
         dxFoot = stepSize*(1-std::cos(phi))/2;
-        dzFoot = stepSize*std::sin(phi);
+        dzFoot = 20*std::sin(phi);
       }else{
         dxFoot = stepSize;
         dzFoot = 0;
@@ -1539,13 +1559,13 @@ namespace hebi {
       // std::cout<<dxFoot<<" - "<<dzFoot<<" @ "<<timeStep<< std::endl;
     }else if(legIndex == 4)
     {
-      double phi = ((double)timeStep - 12)/6*M_PI;
-      if(percentage<0.5){
+      if(timeStep <= 14){
         dxFoot = 0;
         dzFoot = 0;
-      }else if(percentage<0.75){
+      }else if(timeStep <= 16){
+        double phi = ((double)timeStep - 14)/2*M_PI; // [13, 17] -> [0, M_PI]
         dxFoot = stepSize*(1-std::cos(phi))/2;
-        dzFoot = stepSize*std::sin(phi);
+        dzFoot = 20*std::sin(phi);
       }else{
         dxFoot = stepSize;
         dzFoot = 0;
@@ -1553,17 +1573,22 @@ namespace hebi {
       // std::cout<<dxFoot<<" - "<<dzFoot<<" @ "<<timeStep<< std::endl;
     }else if(legIndex == 0)
     {
-      double phi = ((double)timeStep - 18)/6*M_PI;
-      if(percentage<0.75){
+      if(timeStep <= 20){
         dxFoot = 0;
         dzFoot = 0;
-      }else{
+      }else if(timeStep <= 22){
+        double phi = ((double)timeStep - 20)/2*M_PI; // [19, 23] -> [0, M_PI]
         dxFoot = stepSize*(1-std::cos(phi))/2;
-        dzFoot = stepSize*std::sin(phi);
+        dzFoot = 20*std::sin(phi);
+      }else{
+        dxFoot = stepSize;
+        dzFoot = 0;
       }
       // std::cout<<dxFoot<<" - "<<dzFoot<<" @ "<<timeStep<< std::endl;
     }
 
+    // dxFoot = 0;
+    // dzFoot = 0;
     // std::cout<<"Base: "<<dxBody<<" - "<<dyBody<<", Foot"<<legIndex<<": "<<dxFoot<<" - "<<dzFoot<<" @ "<<timeStep<< std::endl;
 
     hebi::robot_model::Matrix4dVector frames;
@@ -1583,8 +1608,8 @@ namespace hebi {
     Eigen::VectorXd end_com_ee_xyz = start_com_ee_xyz + move_command * 0.01;
 
     // std::cout << "Foot"<< legIndex <<" xyz:\n" << start_com_ee_xyz <<" @ "<<timeStep<< std::endl;
-    // if(legIndex == 5)
-    //   std::cout << "Foot"<< legIndex <<" y:" << end_com_ee_xyz(1) <<" \t@ "<<timeStep<< std::endl;
+    if(legIndex == 5)
+      std::cout << "Foot"<< legIndex <<" y:" << end_com_ee_xyz(1) <<" \t@ "<<timeStep<< std::endl;
 
     // calc IK for Foot
     Eigen::VectorXd end_leg_angles;
@@ -1622,11 +1647,11 @@ namespace hebi {
       cmd_[leg_offset + 2].actuator().effort().set(traj_accs(2));
 
       // calc FK for debug
-      hebi::robot_model::Matrix4dVector frames;
-      legs_[legIndex] -> getKinematics().getFK(HebiFrameTypeEndEffector, traj_angles, frames); // I assume this is in the frame of base frame
-      Eigen::Vector3d cmd_com_ee_xyz = frames[0].topRightCorner<3,1>();
-      if(legIndex == 5 && (timeSpent >= totalTime-1 || timeSpent<=1))
-        std::cout << "Foot"<< legIndex <<" y:" << cmd_com_ee_xyz(1) << "\ttraj_vels" << traj_vels(0) << "@" << timeSpent << std::endl;
+      // hebi::robot_model::Matrix4dVector frames;
+      // legs_[legIndex] -> getKinematics().getFK(HebiFrameTypeEndEffector, traj_angles, frames); // I assume this is in the frame of base frame
+      // Eigen::Vector3d cmd_com_ee_xyz = frames[0].topRightCorner<3,1>();
+      // if(legIndex == 5 && (timeSpent >= totalTime-1 || timeSpent<=1))
+      //   std::cout << "Foot"<< legIndex <<" y:" << cmd_com_ee_xyz(1) << "\ttraj_vels" << traj_vels(0) << "@" << timeSpent << std::endl;
     }
 
     saveCommand();
