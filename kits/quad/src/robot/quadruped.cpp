@@ -1665,6 +1665,11 @@ namespace hebi {
     // first generate two offset from stance for virtual feet Ldx, Ldz, Rdx, Rdz
     // if forward, dx != 0
     // if stationary, dx = 0
+    const int totalSteps = 100;
+    int swing_vleg = 0;
+    for(int timeStep = 0; timeStep<totalSteps; timeStep++){
+
+    }
     // second IK for each feet and push to trajectory
 
 
