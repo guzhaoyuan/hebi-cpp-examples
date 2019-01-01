@@ -1661,7 +1661,7 @@ namespace hebi {
   // the function is invoked @ 4 feet on ground
   // plan half step into the future
   // either step forward or keep stationary
-  void Quadruped::planDynamicGait(){ 
+  void Quadruped::planDynamicGait(double Ldx, double Rdx, bool swingLeft){
     // first generate two offset from stance for virtual feet Ldx, Ldz, Rdx, Rdz
     // if forward, dx != 0
     // if stationary, dx = 0
