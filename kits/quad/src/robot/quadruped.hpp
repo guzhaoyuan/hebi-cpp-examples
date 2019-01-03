@@ -110,8 +110,10 @@ class Quadruped
     void loadStanceCommand();
 
     // function for dynamic walk by zhaoyuan
-    void planDynamicGait();
+    void planDynamicGait(double Ldx, double Rdx, bool swingLeft);
     void followDynamicGait(double timeSpent);
+    double getPeriodTime(){return periodTime;}
+    double setPeriodTime(double periodTime){periodTime = periodTime;}
 
   private:
     // private constructor, it make sense because before construct must make sure group is successfully created
@@ -189,10 +191,15 @@ class Quadruped
     const double totalTime = 10;
     const double stepSize = 16;
 
+    // Dynamic Walk params
+    double periodTime;
+
     Eigen::Vector4d base_stance_ee_xyz; // expressed in base motor's frame
     Eigen::Vector4d base_stance_ee_xyz_offset; // expressed in base motor's frame
     Eigen::Vector3d stance_ee_xyz_fk_offset;  // HEBI's bug: they does not consider the offset of the last link.
     Eigen::Vector3d com_stance_ee_xyz;  // expressed in com of the robot's frame
+
+
 };
 
 } // namespace hebi
