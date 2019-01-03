@@ -10,7 +10,7 @@ SET (CMAKE_CXX_FLAGS "-O3")
 # Instruct CMake to run moc automatically when needed.
 set(CMAKE_AUTOMOC ON)
 
-find_package(Qt5 REQUIRED COMPONENTS Core Gui Widgets NO_CMAKE_PATH)
+# find_package(Qt5 REQUIRED COMPONENTS Core Gui Widgets NO_CMAKE_PATH)
 #find_package(Qt5 REQUIRED COMPONENTS Core Gui Widgets 3DCore 3DExtras 3DRender 3DInput NO_CMAKE_PATH)
 #find_package(Doxygen)
 
