@@ -107,6 +107,7 @@ int main(int argc, char** argv)
   bool swingLeft = true;
   double Ldx, Rdx;
   const double stepSize = 20;
+  double stepTime = 20;
   
   while (control_execute.load(std::memory_order_acquire)) // I have no idea why this not working after remove Q application
   // while(true)
@@ -169,144 +170,95 @@ int main(int argc, char** argv)
       {
         state_curr_time = std::chrono::steady_clock::now();
         state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
-        bool ready = false;
+        bool ready = true;
+        
         // make sure the time is strictly within totalTime
-        if (state_run_time.count() >= quadruped -> getTotalTime()){
+        if (state_run_time.count() >= quadruped -> getStepTime()){
           state_enter_time = std::chrono::steady_clock::now();
           first_time_enter = true;
-          switch (cur_walk_state){
-            case PREPARE:
-              while(!ready)
-                std::cout<<"robot not ready"<<std::endl;
-              if(input->getRightVertRaw() == 0)
-                cur_walk_state = START;
-              else
-
-              break;
-
-            case START: // robot in stance state
-              if(input->getRightVertRaw() == 0){
-                cur_walk_state = STEPPING;
-              }else{
-                cur_walk_state = FORWARD;
-              }
-              swingLeft != swingLeft;  
-              
-              break;
-
-            case FORWARD:
-              if(input->getRightVertRaw() == 0){
-                cur_walk_state = FINISH;
-
-              }else{
-                cur_walk_state = FINISH;
-              }
-              swingLeft != swingLeft;  
-              quadruped -> planDynamicGait(Ldx, Rdx, swingLeft);
-              break;
-
-            case STEPPING:
-              if(input->getRightVertRaw() == 0){
-                cur_walk_state = STEPPING;
-                Ldx = 0;
-                Rdx = 0;
-              }else{
-                cur_walk_state = FORWARD;
-                Ldx = swingLeft?stepSize/2:-stepSize/2;
-                Rdx = 0 - Ldx;
-              }
-              swingLeft != swingLeft;  
-              quadruped -> planDynamicGait(Ldx, Rdx, swingLeft);
-              break;
-
-            case FINISH:
-              if(input->getRightVertRaw() == 0){
-                cur_walk_state = STEPPING;
-                Ldx = 0;
-                Rdx = 0;
-              }else{
-                cur_walk_state = START;
-                Ldx = swingLeft?stepSize/2:-stepSize/2;
-                Rdx = 0 - Ldx;
-              }
-              swingLeft != swingLeft;  
-              quadruped -> planDynamicGait(Ldx, Rdx, swingLeft);
-              break;
-          }
+          
           break;
         }
 
         if(first_time_enter){
-          // Read input to change state or not
-          
+          first_time_enter = false;
+
           switch (cur_walk_state){
             case PREPARE:
               while(!ready)
                 std::cout<<"robot not ready"<<std::endl;
+              
+              std::cout<<"robot ready, Starting."<<std::endl;
               cur_walk_state = START;
+              state_enter_time = std::chrono::steady_clock::now();
+              first_time_enter = true;
               break;
 
             case START: // robot in stance state
-              if(input->getRightVertRaw() == 0){
+              std::cout<<"Start START"<<std::endl;
+              if(input->getRightVertRaw() == 0){ // stationary
                 cur_walk_state = STEPPING;
-                Ldx = 0;
-                Rdx = 0;
-              }else{
+                state_enter_time = std::chrono::steady_clock::now();
+                first_time_enter = true;
+              }else{ // forward half step
+                std::cout<<"Half Step Forward"<<std::endl;
                 cur_walk_state = FORWARD;
                 Ldx = swingLeft?stepSize/2:-stepSize/2;
                 Rdx = 0 - Ldx;
+                quadruped -> planDynamicGait(Ldx, Rdx, swingLeft);
+                swingLeft = !swingLeft;
               }
-              swingLeft != swingLeft;  
-              quadruped -> planDynamicGait(Ldx, Rdx, swingLeft);
               break;
 
             case FORWARD:
               if(input->getRightVertRaw() == 0){
                 cur_walk_state = FINISH;
-                Ldx = 0;
-                Rdx = 0;
+                state_enter_time = std::chrono::steady_clock::now();
+                first_time_enter = true;
               }else{
+                std::cout<<"keep FORWARD"<<std::endl;
                 Ldx = swingLeft?stepSize/2:-stepSize/2;
                 Rdx = 0 - Ldx;
+                quadruped -> planDynamicGait(Ldx, Rdx, swingLeft);
+                swingLeft = !swingLeft;
               }
-              swingLeft != swingLeft;  
-              quadruped -> planDynamicGait(Ldx, Rdx, swingLeft);
               break;
 
-            case STEPPING:
+            case STEPPING: // robot in stance state
               if(input->getRightVertRaw() == 0){
+                std::cout<<"Start STEPPING"<<std::endl;
                 cur_walk_state = STEPPING;
                 Ldx = 0;
                 Rdx = 0;
+                quadruped -> planDynamicGait(Ldx, Rdx, swingLeft);
+                swingLeft = !swingLeft;
               }else{
-                cur_walk_state = FORWARD;
-                Ldx = swingLeft?stepSize/2:-stepSize/2;
-                Rdx = 0 - Ldx;
-              }
-              swingLeft != swingLeft;  
-              quadruped -> planDynamicGait(Ldx, Rdx, swingLeft);
+                std::cout<<"turn to START"<<std::endl;
+                cur_walk_state = START;
+                state_enter_time = std::chrono::steady_clock::now();
+                first_time_enter = true;
+              }              
               break;
 
             case FINISH:
-              if(input->getRightVertRaw() == 0){
-                cur_walk_state = STEPPING;
-                Ldx = 0;
-                Rdx = 0;
-              }else{
-                cur_walk_state = START;
-                Ldx = swingLeft?stepSize/2:-stepSize/2;
-                Rdx = 0 - Ldx;
-              }
-              swingLeft != swingLeft;  
+              std::cout<<"Start FINISH"<<std::endl;
+              cur_walk_state = START;
+              Ldx = 0;
+              Rdx = 0;
               quadruped -> planDynamicGait(Ldx, Rdx, swingLeft);
+              swingLeft = !swingLeft;
+              
               break;
-          }
-          
-          first_time_enter = false;
+          }     
         }
 
-        quadruped -> followDynamicGait(state_run_time.count());
-
+        if(first_time_enter == true){
+          quadruped -> freeze();
+        }else{
+          quadruped -> followDynamicGait(state_run_time.count());
+          // quadruped -> freeze();
+        }
+        
         break;
       }
 

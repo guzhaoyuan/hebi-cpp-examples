@@ -112,8 +112,9 @@ class Quadruped
     // function for dynamic walk by zhaoyuan
     void planDynamicGait(double Ldx, double Rdx, bool swingLeft);
     void followDynamicGait(double timeSpent);
-    double getPeriodTime(){return periodTime;}
-    double setPeriodTime(double periodTime){periodTime = periodTime;}
+    double getStepTime(){return stepTime;}
+    // double setHalfStepTime(double periodTime){periodTime = periodTime;}
+    void recordFootPos(double Ldx = 0, double Rdx = 0){curFootPos = std::make_pair(Ldx, Rdx);}
 
   private:
     // private constructor, it make sense because before construct must make sure group is successfully created
@@ -129,6 +130,7 @@ class Quadruped
     GroupCommand cmd_;
     GroupCommand saved_cmd_;
     GroupCommand saved_stance_cmd_;
+    std::pair<double, double> curFootPos; // Ldx, Rdx
 
     // leg info
     std::vector<std::unique_ptr<QuadLeg> > legs_;
@@ -152,8 +154,9 @@ class Quadruped
     std::vector<std::shared_ptr<trajectory::Trajectory>> startup_trajectories;
     std::vector<std::shared_ptr<trajectory::Trajectory>> stance_trajectories;  // used in runTest
     std::vector<std::shared_ptr<trajectory::Trajectory>> swing_trajectories;   // used in runTest and followFootTraj
-    std::vector<std::shared_ptr<trajectory::Trajectory>> body_move_trajectories;  // used in runTest
-    std::vector<std::shared_ptr<trajectory::Trajectory>> wave_gait_trajectories;  // used in runTest
+    std::vector<std::shared_ptr<trajectory::Trajectory>> body_move_trajectories;  // used in static walk
+    std::vector<std::shared_ptr<trajectory::Trajectory>> wave_gait_trajectories;  // used in wave gait
+    std::vector<std::shared_ptr<trajectory::Trajectory>> trot_gait_trajectories;  // used in trot gait
 
     int trajFootIndex; // used to indicate which foot does the trajectory corresponding to
     bool is_exec_traj; // flag to show that it is still running trajectories 
@@ -192,7 +195,7 @@ class Quadruped
     const double stepSize = 16;
 
     // Dynamic Walk params
-    double periodTime;
+    const double stepTime = 1;
 
     Eigen::Vector4d base_stance_ee_xyz; // expressed in base motor's frame
     Eigen::Vector4d base_stance_ee_xyz_offset; // expressed in base motor's frame
