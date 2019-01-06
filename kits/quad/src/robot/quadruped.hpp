@@ -199,7 +199,7 @@ class Quadruped
     const double stepSize = 8;
 
     // Dynamic Walk params
-    const double stepTime = 1.2;
+    const double stepTime = 1.2*1;
 
     Eigen::Vector4d base_stance_ee_xyz; // expressed in base motor's frame
     Eigen::Vector4d base_stance_ee_xyz_offset; // expressed in base motor's frame

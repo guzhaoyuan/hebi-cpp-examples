@@ -1718,20 +1718,35 @@ namespace hebi {
       computeFK(start_com_ee_xyz, start_leg_angles, legIndex);
       
       // calc foot position based on FK
+      // [0, constantSteps, swingSteps, totalSteps]
       if(legIndex == 0 || legIndex == 5){ // left virtual leg
         for(int timeStep = 0; timeStep<=totalSteps; timeStep++){
           const int contactSteps = totalSteps * 0.5;
           const int swingSteps = totalSteps - contactSteps;
           double theta = 0;
           if(timeStep > contactSteps)
-            theta = (double)(timeStep - contactSteps) / swingSteps * 2*M_PI;//0 -> 2*M_PI
+            theta = (double)(timeStep - contactSteps) / swingSteps * 2*M_PI; //[constantSteps, totalSteps] = [0, 2*M_PI]
           if(swingLeft){
             dzFoot = 20 * (1-cos(theta))/2;
           }else{
             dzFoot = 0;
           }
-          dxFoot = (Ldx - curFootPos.first) * (1-cos(theta/2))/2 + curFootPos.first;
-        
+          if(Ldx != 0 || Rdx != 0 || curFootPos.first != 0 || curFootPos.second != 0){ // if not stepping
+            double phi = (double)timeStep / totalSteps * 2*M_PI;//0 -> 2*M_PI 
+            if(swingLeft){
+              if(timeStep <= contactSteps)
+                dxFoot = (-0.5*stepSize) * (1-cos(phi/2))/2 + curFootPos.first; // move body half step forward
+              else
+                dxFoot = (Ldx - (curFootPos.first - 0.5*stepSize)) * (1-cos(theta/2))/2 + (curFootPos.first - 0.5*stepSize);
+            }else{
+              dxFoot = (Ldx - curFootPos.first) * (1-cos(phi/2))/2 + curFootPos.first;
+            }
+          }
+
+          if(legIndex == 0){
+            std::cout<<dxFoot<<" - "<<dzFoot<<" @ "<<timeStep<< std::endl;
+          }
+
           Eigen::Vector3d move_command = {dxFoot, 0, dzFoot};
           Eigen::VectorXd end_com_ee_xyz = start_com_ee_xyz + move_command * 0.01;
           // second IK for each feet and push to trajectory
@@ -1743,7 +1758,7 @@ namespace hebi {
         }
       }else{ // right virtual leg
         for(int timeStep = 0; timeStep<=totalSteps; timeStep++){
-          const int contactSteps = totalSteps * 0.4; // contact time phase
+          const int contactSteps = totalSteps * 0.5; // contact time phase
           const int swingSteps = totalSteps - contactSteps;
           double theta = 0;
           if(timeStep > contactSteps)
@@ -1754,7 +1769,17 @@ namespace hebi {
           }else{
             dzFoot = 20 * (1-cos(theta))/2;
           }
-          dxFoot = (Rdx - curFootPos.second) * (1-cos(theta/2))/2 + curFootPos.second;
+          if(Ldx != 0 || Rdx != 0 || curFootPos.first != 0 || curFootPos.second != 0){
+            double phi = (double)timeStep / totalSteps * 2*M_PI;//0 -> 2*M_PI
+            if(swingLeft){
+              dxFoot = (Rdx - curFootPos.second) * (1-cos(phi/2))/2 + curFootPos.second;
+            }else{
+              if(timeStep<= contactSteps)
+                dxFoot = (-0.5*stepSize) * (1-cos(phi/2))/2 + curFootPos.second; // move body half step forward
+              else
+                dxFoot = (Rdx - (curFootPos.second - 0.5*stepSize)) * (1-cos(theta/2))/2 + (curFootPos.second - 0.5*stepSize);
+            }
+          }
 
           // if(legIndex == 4){
           //   std::cout<<dxFoot<<" - "<<dzFoot<<" @ "<<timeStep<< std::endl;
@@ -1825,13 +1850,10 @@ namespace hebi {
       cmd_[leg_offset + 2].actuator().effort().set(traj_accs(2));
 
       // calc FK for debug
-      // hebi::robot_model::Matrix4dVector frames;
-      // legs_[legIndex] -> getKinematics().getFK(HebiFrameTypeEndEffector, traj_angles, frames); // I assume this is in the frame of base frame
-      // Eigen::Vector3d cmd_com_ee_xyz = frames[0].topRightCorner<3,1>();
-      Eigen::VectorXd cmd_com_ee_xyz(3);
-      computeFK(cmd_com_ee_xyz, traj_angles, legIndex);
-      if(legIndex == 5)
-        std::cout << "Foot"<< legIndex <<" :\t" << traj_angles.transpose()<< "\n\t" <<legs_[legIndex]->getJointAngle().transpose() << "@" << timeSpent << std::endl;
+      // Eigen::VectorXd cmd_com_ee_xyz(3);
+      // computeFK(cmd_com_ee_xyz, traj_angles, legIndex);
+      // if(legIndex == 5)
+      //   std::cout << "Foot"<< legIndex <<" :\t" << traj_angles.transpose()<< "\n\t" <<legs_[legIndex]->getJointAngle().transpose() << "@" << timeSpent << std::endl;
     }
 
     saveCommand();
