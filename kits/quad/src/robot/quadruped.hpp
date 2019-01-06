@@ -90,6 +90,8 @@ class Quadruped
     bool setGains();
 
     // Public Function below is added by Zhaoyuan, use at your own risk
+    bool pushAllLegs(double curr_time, double total_time, bool& first_time_enter);
+
     void moveLegs(double dx, double dy, double dz = 0);
     void moveBody(double dx, double dy, double dz = 0); // move body in cm
     void moveFootRel(int footIndex, double dx = 0, double dy = 0, double dz = 0);

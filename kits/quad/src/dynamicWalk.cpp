@@ -36,7 +36,7 @@ enum dynamic_walk_state {
 };
 
 // state transition variables
-double startup_seconds = 1.9;
+double startup_seconds = 1;
 double re_pose_seconds = 3;
 
 int main(int argc, char** argv)
@@ -146,7 +146,8 @@ int main(int argc, char** argv)
         if (state_run_time.count() >= startup_seconds)
         {
           cur_ctrl_state = QUAD_CTRL_STAND_UP2;
-          state_enter_time = std::chrono::steady_clock::now(); 
+          first_time_enter = true;
+          state_enter_time = std::chrono::steady_clock::now();
         }
         break;
       }
@@ -155,7 +156,7 @@ int main(int argc, char** argv)
         state_curr_time = std::chrono::steady_clock::now();
         state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
 
-        isFinished = quadruped -> pushAllLegs(state_run_time.count(), startup_seconds);
+        isFinished = quadruped -> pushAllLegs(state_run_time.count(), startup_seconds, first_time_enter);
         if (state_run_time.count() >= startup_seconds)
         {
           quadruped -> startBodyRUpdate();

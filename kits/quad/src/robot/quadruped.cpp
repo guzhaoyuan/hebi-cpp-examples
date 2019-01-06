@@ -288,7 +288,7 @@ namespace hebi {
     // Controls to send to the robot
     Eigen::VectorXd angles(num_joints_per_leg_);
     Eigen::VectorXd vels(num_joints_per_leg_);
-    Eigen::VectorXd torques(num_joints_per_leg_); 
+    Eigen::VectorXd torques(num_joints_per_leg_);
     for (int i = 0; i < num_legs_; ++i)
     {
       Eigen::VectorXd a(num_joints_per_leg_); // do not use acceleration
@@ -433,18 +433,19 @@ namespace hebi {
       else if (i == 4) base_stance_ee_xyz_offset = Eigen::Vector4d(  0, -0.07, 0, 0);
       else base_stance_ee_xyz_offset = Eigen::Vector4d(0,0,0,0);
         
-      // Eigen::VectorXd home_stance_xyz = (base_frame * (base_stance_ee_xyz+base_stance_ee_xyz_offset)).topLeftCorner<3,1>();
-      Eigen::VectorXd home_stance_xyz = (base_frame * base_stance_ee_xyz).topLeftCorner<3,1>();
-      home_stance_xyz(0) += 0.015; // tune stance position to make COM right on the cross of diagonal legs
+      // Eigen::VectorXd home_stance_xyz = (base_frame * (base_stance_ee_xyz+base_stance_ee_xyz_offset)).topLeftCorner<3,1>(); // use offset
+      Eigen::VectorXd home_stance_xyz = (base_frame * base_stance_ee_xyz).topLeftCorner<3,1>(); // not use offset
+      home_stance_xyz(0) += 0.015; // tune stance position to make COM right above the cross point of diagonal legs
 
       // legs_[i]->computeIK(goal, home_stance_xyz);
       computeIK(goal, home_stance_xyz, i);
 
       int leg_offset = i * num_joints_per_leg_;
+
       cmd_[leg_offset + 0].actuator().position().set(goal(0));
       cmd_[leg_offset + 1].actuator().position().set(goal(1));
       cmd_[leg_offset + 2].actuator().position().set(goal(2));
-   
+
       Eigen::Vector3d vels(0,0,0);
       // locally compensate foot force, need a dedicated function later
       Eigen::Vector3d foot_force = 1.0f / 4.0f * -Eigen::Vector3d(0,0,-1) * weight_;
@@ -1215,6 +1216,96 @@ namespace hebi {
   }
 
   // Author: Zhaoyuan
+  // overload of pushAllLegsFunction, added plan trajectory function
+  bool Quadruped::pushAllLegs(double curr_time, double total_time, bool& first_time_enter)
+  {
+    bool isReaching = true;
+    is_exec_traj = true;
+
+    if(first_time_enter){
+      std::cout<<"first time, plan standup.\n";
+
+      startup_trajectories.clear();
+      
+      loadCommand();
+
+      // set command angle 
+      for (int i = 0; i < num_legs_; ++i)
+      {
+        const int num_waypoints = 2;
+        Eigen::MatrixXd positions(num_joints_per_leg_, num_waypoints);
+        Eigen::MatrixXd velocities = Eigen::MatrixXd::Zero(num_joints_per_leg_, num_waypoints);
+        Eigen::MatrixXd accelerations = Eigen::MatrixXd::Zero(num_joints_per_leg_, num_waypoints);
+        Eigen::VectorXd times(num_waypoints);
+        Eigen::VectorXd nan_column = Eigen::VectorXd::Constant(num_joints_per_leg_, std::numeric_limits<double>::quiet_NaN());
+        
+        auto base_frame = legs_[i] -> getBaseFrame();
+        Eigen::VectorXd home_stance_xyz = (base_frame * base_stance_ee_xyz).topLeftCorner<3,1>(); // not use offset
+        home_stance_xyz(0) += 0.015; // tune stance position to make COM right above the cross point of diagonal legs
+
+        Eigen::VectorXd goal(num_joints_per_leg_);
+        computeIK(goal, home_stance_xyz, i);
+
+        // optimize this part later
+        Eigen::VectorXd start_leg_angles(num_joints_per_leg_);
+        int leg_offset = i * num_joints_per_leg_;
+        start_leg_angles(0) = cmd_[leg_offset + 0].actuator().position().get();
+        start_leg_angles(1) = cmd_[leg_offset + 1].actuator().position().get();
+        start_leg_angles(2) = cmd_[leg_offset + 2].actuator().position().get();
+
+        positions.col(0) = start_leg_angles;
+        positions.col(num_waypoints-1) = goal;
+        
+        // v, a all zero
+
+        times << 0, total_time;
+
+        startup_trajectories.push_back(trajectory::Trajectory::createUnconstrainedQp(
+          times, positions, &velocities, &accelerations));
+      }
+
+      first_time_enter = false;
+
+    }else{
+      // std::cout<<"not first time, execute.\n";
+      for (int i = 0; i < num_legs_; ++i)
+      {
+        // Controls to send to the robot
+        Eigen::VectorXd angles(num_joints_per_leg_);
+        Eigen::VectorXd vels(num_joints_per_leg_);
+        Eigen::VectorXd a(num_joints_per_leg_);
+        Eigen::VectorXd torques(num_joints_per_leg_);
+
+        startup_trajectories[i]->getState(curr_time, &angles, &vels, &a);
+
+        // using a to calc torque
+        Eigen::Vector3d gravity_vec = getGravityDirection() * 9.8f;
+        Eigen::MatrixXd foot_forces(3, num_legs_); // 3 (xyz) by num legs
+        computeFootForces(foot_forces);
+        double ramp_up_scale = std::min(1.0, (curr_time + 0.001 / 2.0)); // to prevent segementation fault when curr_time ==0
+        foot_forces *= ramp_up_scale;
+        //foot_forces.setZero();
+        Eigen::Vector3d foot_force = foot_forces.block<3,1>(0,i);
+        torques = legs_[i]-> computeCompensateTorques(angles, vels, gravity_vec, foot_force); 
+
+        // set command
+        setCommand(i, &angles, &vels, &torques);
+      }
+    }
+    // lift two leg
+    lifeManipulatorLegs();
+
+    // save all the command
+    saveCommand();
+    saveStanceCommand();
+    recordFootPos();
+    
+    // send command
+    sendCommand();
+
+    return isReaching;   
+  }
+
   // move leg 3 or 4 while other legs supporting the robot
   void Quadruped::moveLegs(double dx, double dy, double dz){
     // here not use current position, use last sent command instead
