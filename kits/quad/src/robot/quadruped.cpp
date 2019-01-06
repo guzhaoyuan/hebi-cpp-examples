@@ -51,7 +51,7 @@ namespace hebi {
       30.0 * M_PI / 180.0, -30.0 * M_PI / 180.0, 90.0 * M_PI / 180.0, -90.0 * M_PI / 180.0, 150.0 * M_PI / 180.0, -150.0 * M_PI / 180.0; // angle
     
 
-    base_stance_ee_xyz = Eigen::Vector4d(0.40f, 0.0f, -0.15f, 0); // expressed in base motor's frame
+    base_stance_ee_xyz = Eigen::Vector4d(0.50f, 0.0f, -0.15f, 0); // expressed in base motor's frame
     foot_bar_y = 0.55f/2 + bar_y;                   //  \ 
     foot_bar_x = 0.55f/2*sqrt(3) + bar_x;           //  |  shoud be the same 
     nominal_height_z = 0.23f;                       //  /

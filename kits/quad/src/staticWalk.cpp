@@ -17,10 +17,26 @@ using namespace Eigen;
 enum ctrl_state_type {
   QUAD_CTRL_STAND_UP1,
   QUAD_CTRL_STAND_UP2,
+  QUAD_CTRL_STAND_UP3,
 
-  QUAD_DYNAMIC_WALK,
+  QUAD_STATIC_WALK,         // <- entry, move base and move four legs seperately
+  QUAD_WAVE_GAIT,           // <- entry, wave gait, move base and one leg simualtanuously
 
   CTRL_STATES_COUNT
+};
+
+enum static_walk_state {
+  START,
+  MOVE_BASE1,
+  MOVE_LEG1,
+  MOVE_BASE2,
+  MOVE_LEG2,
+  MOVE_BASE3,
+  MOVE_LEG3,
+  MOVE_BASE4,
+  MOVE_LEG4,
+  MOVE_BASE5,
+  FINISH
 };
 
 // state transition variables
@@ -122,9 +138,15 @@ int main(int argc, char** argv)
     translation_velocity_cmd = input->getTranslationVelocityCmd();
     rotation_velocity_cmd = input->getRotationVelocityCmd();
     Eigen::Matrix3d target_body_R;
-
+    
+    // control state machine 
+    // std::cout << "|Time: " << elapsed_time.count() <<  "| my current state is: " << cur_ctrl_state <<std::endl;
     switch (cur_ctrl_state)
     {
+
+      // let me write a standup strategy myself
+      // it takes three step, first spread legs to let belly touch the ground, then push legs to lift the body
+      // finally lift the two arms 
       case QUAD_CTRL_STAND_UP1:
       {
         state_curr_time = std::chrono::steady_clock::now();
@@ -147,14 +169,230 @@ int main(int argc, char** argv)
         if (state_run_time.count() >= startup_seconds)
         {
           quadruped -> startBodyRUpdate();
-          cur_ctrl_state = QUAD_DYNAMIC_WALK;
+          cur_ctrl_state = QUAD_WAVE_GAIT;
           first_time_enter = true;
           state_enter_time = std::chrono::steady_clock::now(); 
         }
         break;
       }
 
-      case QUAD_DYNAMIC_WALK:
+      case QUAD_CTRL_STAND_UP3:
+      {
+        state_curr_time = std::chrono::steady_clock::now();
+        state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
+
+        isFinished = quadruped -> prepareQuadMode();
+        if (state_run_time.count() >= startup_seconds)
+        {
+          // the entry to some final state, either running or rotating
+          cur_ctrl_state = QUAD_STATIC_WALK;
+          balance_body_R = quadruped -> getBodyR();
+          quadruped -> saveFootPose();
+          quadruped -> setStartGait();
+          state_enter_time = std::chrono::steady_clock::now(); 
+          //quadruped -> prepareTrajectories(Quadruped::SwingMode::swing_mode_virtualLeg1, leg_swing_time);
+        }
+        break;
+      }
+
+      // move base and move four legs seperately
+      case QUAD_STATIC_WALK:
+      {
+        bool ready = true;
+
+        switch (cur_walk_state){
+          case START:
+            while(!ready){
+              // std::cout << "the robot is not ready for start gait\n";
+              quadruped -> freeze();
+              // std::this_thread::sleep_for(std::chrono::seconds(1));
+            }
+            quadruped -> freeze();
+            cur_walk_state = MOVE_BASE1;
+            first_time_enter = true;
+            break;
+
+          case MOVE_BASE1:
+            state_curr_time = std::chrono::steady_clock::now();
+            state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
+
+            if(first_time_enter){
+              std::cout<< "enter MOVE_BASE1\n";
+              quadruped -> planBodyTraj(10, 4, body_move_time);
+              first_time_enter = false;
+            }
+            quadruped -> followBodyTraj(state_run_time.count());
+            if (state_run_time.count() >= body_move_time)
+            {
+              cur_walk_state = MOVE_LEG1; 
+              state_enter_time = std::chrono::steady_clock::now(); 
+              first_time_enter = true;
+            }
+            break;
+
+          case MOVE_LEG1:
+            state_curr_time = std::chrono::steady_clock::now();
+            state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
+
+            move_leg_id = 5;
+
+            if(first_time_enter){
+              std::cout<< "enter MOVE_LEG1\n";
+              quadruped -> planFootTraj(move_leg_id, 20, 0, 15, leg_swing_time); // make sure only plan only, the plan is based on current position
+              first_time_enter = false;
+            }
+            quadruped -> followFootTraj(move_leg_id, state_run_time.count());
+            if (state_run_time.count() >= leg_swing_time)
+            {
+              cur_walk_state = MOVE_BASE2;
+              state_enter_time = std::chrono::steady_clock::now();
+              first_time_enter = true;
+            }
+            break;
+
+          case MOVE_BASE2:
+            state_curr_time = std::chrono::steady_clock::now();
+            state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
+
+            if(first_time_enter){
+              std::cout<< "enter MOVE_BASE2\n";
+              quadruped -> planBodyTraj(-10, 0, body_move_time);
+              first_time_enter = false;
+            }
+            quadruped -> followBodyTraj(state_run_time.count());
+            if (state_run_time.count() >= body_move_time)
+            {
+              cur_walk_state = MOVE_LEG2; 
+              state_enter_time = std::chrono::steady_clock::now(); 
+              first_time_enter = true;
+            }
+            break;
+
+          case MOVE_LEG2:
+            state_curr_time = std::chrono::steady_clock::now();
+            state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
+
+            move_leg_id = 1;
+
+            if(first_time_enter){
+              std::cout<< "enter MOVE_LEG2\n";
+              quadruped -> planFootTraj(move_leg_id, 20, 0, 15, leg_swing_time); // make sure only plan only, the plan is based on current position
+              first_time_enter = false;
+            }
+            quadruped -> followFootTraj(move_leg_id, state_run_time.count());
+            if (state_run_time.count() >= leg_swing_time)
+            {
+              cur_walk_state = MOVE_BASE3;
+              state_enter_time = std::chrono::steady_clock::now();
+              first_time_enter = true;
+            }
+            break;
+
+          case MOVE_BASE3:
+            state_curr_time = std::chrono::steady_clock::now();
+            state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
+
+            if(first_time_enter){
+              std::cout<< "enter MOVE_BASE3\n";
+              quadruped -> planBodyTraj(15, -8, body_move_time);
+              first_time_enter = false;
+            }
+            quadruped -> followBodyTraj(state_run_time.count());
+            if (state_run_time.count() >= body_move_time)
+            {
+              cur_walk_state = MOVE_LEG3; 
+              state_enter_time = std::chrono::steady_clock::now(); 
+              first_time_enter = true;
+            }
+            break;
+
+          case MOVE_LEG3:
+            state_curr_time = std::chrono::steady_clock::now();
+            state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
+
+            move_leg_id = 4;
+
+            if(first_time_enter){
+              std::cout<< "enter MOVE_LEG3\n";
+              quadruped -> planFootTraj(move_leg_id, 20, 0, 15, leg_swing_time); // make sure only plan only, the plan is based on current position
+              first_time_enter = false;
+            }
+            quadruped -> followFootTraj(move_leg_id, state_run_time.count());
+            if (state_run_time.count() >= leg_swing_time)
+            {
+              cur_walk_state = MOVE_BASE4;
+              state_enter_time = std::chrono::steady_clock::now();
+              first_time_enter = true;
+            }
+            break;
+
+          case MOVE_BASE4:
+            state_curr_time = std::chrono::steady_clock::now();
+            state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
+
+            if(first_time_enter){
+              std::cout<< "enter MOVE_BASE4\n";
+              quadruped -> planBodyTraj(-5, -2, body_move_time);
+              first_time_enter = false;
+            }
+            quadruped -> followBodyTraj(state_run_time.count());
+            if (state_run_time.count() >= body_move_time)
+            {
+              cur_walk_state = MOVE_LEG4; 
+              state_enter_time = std::chrono::steady_clock::now(); 
+              first_time_enter = true;
+            }
+            break;
+
+          case MOVE_LEG4:
+            state_curr_time = std::chrono::steady_clock::now();
+            state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
+
+            move_leg_id = 0;
+
+            if(first_time_enter){
+              std::cout<< "enter MOVE_LEG4\n";
+              quadruped -> planFootTraj(move_leg_id, 20, 0, 15, leg_swing_time); // make sure only plan only, the plan is based on current position
+              first_time_enter = false;
+            }
+            quadruped -> followFootTraj(move_leg_id, state_run_time.count());
+            if (state_run_time.count() >= leg_swing_time)
+            {
+              cur_walk_state = MOVE_BASE5;
+              state_enter_time = std::chrono::steady_clock::now();
+              first_time_enter = true;
+            }
+            break;
+
+          case MOVE_BASE5:
+            state_curr_time = std::chrono::steady_clock::now();
+            state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
+
+            if(first_time_enter){
+              std::cout<< "enter MOVE_BASE5\n";
+              quadruped -> planBodyTraj(10, 6, body_move_time);
+              first_time_enter = false;
+            }
+            quadruped -> followBodyTraj(state_run_time.count());
+            if (state_run_time.count() >= body_move_time)
+            {
+              cur_walk_state = FINISH; 
+              state_enter_time = std::chrono::steady_clock::now(); 
+              first_time_enter = true;
+            }
+            break;
+
+          case FINISH:
+          default:
+            quadruped -> freeze();
+            break;
+        }
+          
+        break;
+      }
+
+
+      case QUAD_WAVE_GAIT:
       {
         state_curr_time = std::chrono::steady_clock::now();
         state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
@@ -167,11 +405,13 @@ int main(int argc, char** argv)
         }
 
         if(first_time_enter){
+          quadruped -> planWaveGait();
           first_time_enter = false;
         }
 
-
-
+        quadruped -> followWaveGait(state_run_time.count());
+        // std::this_thread::sleep_for(std::chrono::milliseconds(20));
+        // quadruped -> freeze();
         break;
       }
 
