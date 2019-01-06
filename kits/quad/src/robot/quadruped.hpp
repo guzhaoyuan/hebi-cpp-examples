@@ -93,7 +93,7 @@ class Quadruped
     void moveLegs(double dx, double dy, double dz = 0);
     void moveBody(double dx, double dy, double dz = 0); // move body in cm
     void moveFootRel(int footIndex, double dx = 0, double dy = 0, double dz = 0);
-    void moveFootAbs(int footIndex, double dx, double dy, double dz); // TODO: make clear about the com coordinate and leg coordinate
+    // virtual void moveFootAbs(int footIndex, double dx, double dy, double dz) = 0; // TODO: make clear about the com coordinate and leg coordinate
     
     void planFootTraj(int footIndex, double dx, double dy, double dz, double swingTime); // plan a triangle path, dz is height, dx,dx is distance reletive to original foot
     void followFootTraj(int trajFootIndex, double timeSpent);
@@ -116,6 +116,9 @@ class Quadruped
     // double setHalfStepTime(double periodTime){periodTime = periodTime;}
     void recordFootPos(double Ldx = 0, double Rdx = 0){curFootPos = std::make_pair(Ldx, Rdx);}
 
+    // Zhaoyuan's version of IK for Daisy
+    void computeIK(Eigen::VectorXd& angles, const Eigen::VectorXd& ee_pos, const int legIndex);
+    
   private:
     // private constructor, it make sense because before construct must make sure group is successfully created
     Quadruped(std::shared_ptr<Group> group, const QuadrupedParameters& params);
@@ -201,6 +204,11 @@ class Quadruped
     Eigen::Vector4d base_stance_ee_xyz_offset; // expressed in base motor's frame
     Eigen::Vector3d stance_ee_xyz_fk_offset;  // HEBI's bug: they does not consider the offset of the last link.
     Eigen::Vector3d com_stance_ee_xyz;  // expressed in com of the robot's frame
+
+    Eigen::Matrix<double, 4, 6> mountPoints;
+    
+    const double L1 = 0.325;
+    const double L2 = 0.325;
 
 
 };

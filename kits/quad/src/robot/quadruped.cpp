@@ -44,8 +44,14 @@ namespace hebi {
     legs_.emplace_back(new QuadLeg(150.0 * M_PI / 180.0, 0.2375, zero_vec, params, 4, QuadLeg::LegConfiguration::Left));
     legs_.emplace_back(new QuadLeg(-150.0 * M_PI / 180.0, 0.2375, zero_vec, params, 5, QuadLeg::LegConfiguration::Right));
 
+    mountPoints << // 0 1 2 3 4 5
+      0.2375 * cos(30.0 * M_PI / 180.0), 0.2375 * cos(-30.0 * M_PI / 180.0), 0, 0, 0.2375 * cos(150.0 * M_PI / 180.0), 0.2375 * cos(-150.0 * M_PI / 180.0), // x
+      0.2375 * sin(30.0 * M_PI / 180.0), 0.2375 * sin(-30.0 * M_PI / 180.0), 0.1875, -0.1875, 0.2375 * sin(150.0 * M_PI / 180.0), 0.2375 * sin(-150.0 * M_PI / 180.0), // y
+      0, 0, 0, 0, 0, 0, // z
+      30.0 * M_PI / 180.0, -30.0 * M_PI / 180.0, 90.0 * M_PI / 180.0, -90.0 * M_PI / 180.0, 150.0 * M_PI / 180.0, -150.0 * M_PI / 180.0; // angle
+    
 
-    base_stance_ee_xyz = Eigen::Vector4d(0.50f, 0.0f, -0.15f, 0); // expressed in base motor's frame
+    base_stance_ee_xyz = Eigen::Vector4d(0.40f, 0.0f, -0.15f, 0); // expressed in base motor's frame
     foot_bar_y = 0.55f/2 + bar_y;                   //  \ 
     foot_bar_x = 0.55f/2*sqrt(3) + bar_x;           //  |  shoud be the same 
     nominal_height_z = 0.23f;                       //  /
@@ -413,7 +419,7 @@ namespace hebi {
   {
     bool isReaching = true;
     is_exec_traj = true;
-    Eigen::VectorXd goal;
+    Eigen::VectorXd goal(3);
     Eigen::Vector3d gravity_vec = Eigen::Vector3d(0,0,-1) * 9.8f;
 
     // set command angle 
@@ -428,7 +434,9 @@ namespace hebi {
         
       // Eigen::VectorXd home_stance_xyz = (base_frame * (base_stance_ee_xyz+base_stance_ee_xyz_offset)).topLeftCorner<3,1>();
       Eigen::VectorXd home_stance_xyz = (base_frame * base_stance_ee_xyz).topLeftCorner<3,1>();
-      legs_[i]->computeIK(goal, home_stance_xyz);
+      // legs_[i]->computeIK(goal, home_stance_xyz);
+      computeIK(goal, home_stance_xyz, i);
+
       int leg_offset = i * num_joints_per_leg_;
       cmd_[leg_offset + 0].actuator().position().set(goal(0));
       cmd_[leg_offset + 1].actuator().position().set(goal(1));
@@ -1211,14 +1219,17 @@ namespace hebi {
     // if use current position, the position can drift away
     loadCommand();
     // change only 1 arm, keep others same
-    Eigen::VectorXd target_angles;
+    Eigen::VectorXd target_angles(3);
     Eigen::Vector4d target_leg_ee_xyz = Eigen::Vector4d(0.65f + 0.1*dy, 0.0f + 0.1*dx, 0.09f + 0.1*dz, 0); // expressed in base motor's frame
     
     for(int i = 2; i<4; i++){
       auto base_frame = legs_[i] -> getBaseFrame();
       Eigen::VectorXd target_world_ee_xyz = (base_frame * target_leg_ee_xyz).topLeftCorner<3,1>();
 
+      computeIK(target_angles, target_world_ee_xyz, i);
+      std::cout<<"leg"<<i<<"Zion Answer: "<<target_angles.transpose()<<std::endl;
       legs_[i]->computeIK(target_angles, target_world_ee_xyz);
+      std::cout<<"leg"<<i<<"HEBI Answer: "<<target_angles.transpose()<<std::endl;
 
       int leg_offset = i * num_joints_per_leg_;
       cmd_[leg_offset + 0].actuator().position().set(target_angles[0]);
@@ -1231,7 +1242,7 @@ namespace hebi {
     // cmd_[leg_offset + 2].actuator().position().set(saved_cmd_[leg_offset + 2].actuator().position().get() + 0.01*lr);
 
     saveCommand();
-    sendCommand();   
+    sendCommand(); 
   }
 
   // Author: Zhaoyuan
@@ -1807,6 +1818,67 @@ namespace hebi {
 
     saveCommand();
     sendCommand();
+  }
+
+  void Quadruped::computeIK(Eigen::VectorXd& angles, const Eigen::VectorXd& ee_pos, const int legIndex){
+    assert(legIndex>=0 && legIndex<=5);
+
+    bool isLeft = legIndex == 0 || legIndex == 2 || legIndex == 4;
+    const double t = isLeft?(4.5057/100):(-4.5057/100);
+
+    double dZ = ee_pos(2) - mountPoints(2, legIndex);
+    double dX_com = ee_pos(0) - mountPoints(0, legIndex);
+    double dY_com = ee_pos(1) - mountPoints(1, legIndex);
+    
+    // std::cout<<ee_pos(0)<<" "<<ee_pos(1)<<" "<<ee_pos(2)<<" "<<std::endl;
+    // std::cout<<dX_com<<" "<<dY_com<<" "<<dZ<<" "<<std::endl;
+
+    double dR_com = std::sqrt(dX_com*dX_com+dY_com*dY_com);
+    double dX_leg = dX_com*cos(-mountPoints(3,legIndex)) - dY_com*sin(-mountPoints(3,legIndex));
+    double dY_leg = dX_com*sin(-mountPoints(3,legIndex)) + dY_com*cos(-mountPoints(3,legIndex));
+
+    // std::cout<<dX_leg<<" "<<dY_leg<<" "<<std::endl;
+
+    double dPHI1T = std::atan2(dY_leg,dX_leg);
+    double sinPHI1 = std::max(std::min(t/dR_com, 1.), -1.);
+
+    if(abs(sinPHI1) == 1)
+        std::cout<<"capped trig for leg"<<legIndex<<".\n";
+    
+    angles(0) = asin(sinPHI1) + dPHI1T;
+
+    double dR = (dX_leg - sin(angles(0)) * t) / cos(angles(0));
+
+    double theta2, theta3;
+    try {
+      // protected divide
+      double cosPHI2 = std::max(std::min((L2*L2-dR*dR-dZ*dZ-L1*L1)/(-2*L1*std::sqrt(dR*dR+dZ*dZ)), 1.), -1.);
+      double cosPHI3 = std::max(std::min((dR*dR+dZ*dZ-L1*L1-L2*L2)/(-2*L1*L2), 1.), -1.);
+
+      if(std::abs(cosPHI2) == 1 || std::abs(cosPHI3) == 1)
+        std::cout<<"capped trig for leg"<<legIndex<<".\n";
+
+      theta2 = acos(cosPHI2); // theta2 always >= 0
+      theta3 = acos(cosPHI3); // theta3 always >= 0
+    } catch(...) {
+      // handle any exception
+      std::cerr << "Exception when calc theta2 theta3 @ Leg" << legIndex << std::endl;
+    }
+
+    int solution = 0;
+    if(solution == 0){
+      angles(1) = atan2(dZ,dR) + theta2;
+      angles(2) = theta3 - M_PI;
+    }else if(solution == 1){
+      angles(1) = atan2(dZ,dR) - theta2;
+      angles(2) = M_PI - theta3;
+    }
+
+    // because the installation difference between Daisy and Titan
+    if(isLeft)
+      angles(1) = -angles(1);
+    else
+      angles(2) = -angles(2);
   }
 
   void Quadruped::saveStanceCommand(){
