@@ -116,9 +116,10 @@ class Quadruped
     // double setHalfStepTime(double periodTime){periodTime = periodTime;}
     void recordFootPos(double Ldx = 0, double Rdx = 0){curFootPos = std::make_pair(Ldx, Rdx);}
 
-    // Zhaoyuan's version of IK for Daisy
-    void computeIK(Eigen::VectorXd& angles, const Eigen::VectorXd& ee_pos, const int legIndex);
-    
+    // Zhaoyuan's version of IK/FK for Daisy
+    void computeIK(Eigen::VectorXd& angles, const Eigen::VectorXd& ee_com_pos, const int legIndex);
+    void computeFK(Eigen::VectorXd& ee_com_pos, Eigen::VectorXd angles, const int legIndex);
+
   private:
     // private constructor, it make sense because before construct must make sure group is successfully created
     Quadruped(std::shared_ptr<Group> group, const QuadrupedParameters& params);

@@ -1227,9 +1227,12 @@ namespace hebi {
       Eigen::VectorXd target_world_ee_xyz = (base_frame * target_leg_ee_xyz).topLeftCorner<3,1>();
 
       computeIK(target_angles, target_world_ee_xyz, i);
-      std::cout<<"leg"<<i<<"Zion Answer: "<<target_angles.transpose()<<std::endl;
-      legs_[i]->computeIK(target_angles, target_world_ee_xyz);
-      std::cout<<"leg"<<i<<"HEBI Answer: "<<target_angles.transpose()<<std::endl;
+      // std::cout<<"leg"<<i<<"Zion Answer: "<<target_angles.transpose()<<std::endl;
+      // legs_[i]->computeIK(target_angles, target_world_ee_xyz);
+      // std::cout<<"leg"<<i<<"HEBI Answer: "<<target_angles.transpose()<<std::endl;
+      std::cout<<"\nIK input\t"<<target_world_ee_xyz.transpose()<<std::endl;
+      computeFK(target_world_ee_xyz, target_angles, i);
+      std::cout<<"FK output\t"<<target_world_ee_xyz.transpose()<<std::endl;
 
       int leg_offset = i * num_joints_per_leg_;
       cmd_[leg_offset + 0].actuator().position().set(target_angles[0]);
@@ -1820,17 +1823,16 @@ namespace hebi {
     sendCommand();
   }
 
-  void Quadruped::computeIK(Eigen::VectorXd& angles, const Eigen::VectorXd& ee_pos, const int legIndex){
+  void Quadruped::computeIK(Eigen::VectorXd& angles, const Eigen::VectorXd& ee_com_pos, const int legIndex){
     assert(legIndex>=0 && legIndex<=5);
 
     bool isLeft = legIndex == 0 || legIndex == 2 || legIndex == 4;
     const double t = isLeft?(4.5057/100):(-4.5057/100);
 
-    double dZ = ee_pos(2) - mountPoints(2, legIndex);
-    double dX_com = ee_pos(0) - mountPoints(0, legIndex);
-    double dY_com = ee_pos(1) - mountPoints(1, legIndex);
+    double dZ = ee_com_pos(2) - mountPoints(2, legIndex);
+    double dX_com = ee_com_pos(0) - mountPoints(0, legIndex);
+    double dY_com = ee_com_pos(1) - mountPoints(1, legIndex);
     
-    // std::cout<<ee_pos(0)<<" "<<ee_pos(1)<<" "<<ee_pos(2)<<" "<<std::endl;
     // std::cout<<dX_com<<" "<<dY_com<<" "<<dZ<<" "<<std::endl;
 
     double dR_com = std::sqrt(dX_com*dX_com+dY_com*dY_com);
@@ -1879,6 +1881,27 @@ namespace hebi {
       angles(1) = -angles(1);
     else
       angles(2) = -angles(2);
+  }
+
+  void Quadruped::computeFK(Eigen::VectorXd& ee_com_pos, Eigen::VectorXd angles, int legIndex){
+    assert(legIndex>=0 && legIndex<=5);
+
+    bool isLeft = legIndex == 0 || legIndex == 2 || legIndex == 4;
+    // because the installation difference between Daisy and Titan
+    if(isLeft)
+      angles(1) = -angles(1);
+    else
+      angles(2) = -angles(2);
+    const double t = isLeft?(4.5057/100):(-4.5057/100);
+
+    double dR_leg = cos(angles(1))*(L1+L2*cos(angles(2))) - sin(angles(1))*L2*sin(angles(2));
+    double dX_leg = cos(angles(0))*dR_leg + sin(angles(0))*t;
+    double dY_leg = sin(angles(0))*dR_leg - cos(angles(0))*t;
+    double dZ_leg = sin(angles(1))*(L1+L2*cos(angles(2))) + cos(angles(1))*L2*sin(angles(2));
+
+    ee_com_pos(0) = cos(mountPoints(3, legIndex))*dX_leg - sin(mountPoints(3, legIndex))*dY_leg + mountPoints(0, legIndex);
+    ee_com_pos(1) = sin(mountPoints(3, legIndex))*dX_leg + cos(mountPoints(3, legIndex))*dY_leg + mountPoints(1, legIndex);
+    ee_com_pos(2) = dZ_leg + mountPoints(2, legIndex);
   }
 
   void Quadruped::saveStanceCommand(){
