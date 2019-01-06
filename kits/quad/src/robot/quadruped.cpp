@@ -51,7 +51,7 @@ namespace hebi {
       30.0 * M_PI / 180.0, -30.0 * M_PI / 180.0, 90.0 * M_PI / 180.0, -90.0 * M_PI / 180.0, 150.0 * M_PI / 180.0, -150.0 * M_PI / 180.0; // angle
     
 
-    base_stance_ee_xyz = Eigen::Vector4d(0.50f, 0.0f, -0.15f, 0); // expressed in base motor's frame
+    base_stance_ee_xyz = Eigen::Vector4d(0.50f, 0.0f, -0.28f, 0); // expressed in base motor's frame
     foot_bar_y = 0.55f/2 + bar_y;                   //  \ 
     foot_bar_x = 0.55f/2*sqrt(3) + bar_x;           //  |  shoud be the same 
     nominal_height_z = 0.23f;                       //  /
@@ -382,16 +382,17 @@ namespace hebi {
   {
     bool isReaching = true;
     is_exec_traj = true;
-    Eigen::VectorXd goal;
+    Eigen::VectorXd goal(3);
 
     // set command angle 
     for (int i = 0; i < num_legs_; ++i)
     {
       auto base_frame = legs_[i] -> getBaseFrame();
-      Eigen::Vector4d tmp4(0.50, 0, -0.05, 0); // hard code first
+      Eigen::Vector4d tmp4(0.50, 0, -0.0, 0); // hard code first
       Eigen::VectorXd home_stance_xyz = (base_frame * tmp4).topLeftCorner<3,1>();
       
-      legs_[i]->computeIK(goal, home_stance_xyz);
+      // legs_[i]->computeIK(goal, home_stance_xyz);
+      computeIK(goal, home_stance_xyz, i);
       int leg_offset = i * num_joints_per_leg_;
       cmd_[leg_offset + 0].actuator().position().set(goal(0));
       cmd_[leg_offset + 1].actuator().position().set(goal(1));
@@ -434,6 +435,8 @@ namespace hebi {
         
       // Eigen::VectorXd home_stance_xyz = (base_frame * (base_stance_ee_xyz+base_stance_ee_xyz_offset)).topLeftCorner<3,1>();
       Eigen::VectorXd home_stance_xyz = (base_frame * base_stance_ee_xyz).topLeftCorner<3,1>();
+      home_stance_xyz(0) += 0.015; // tune stance position to make COM right on the cross of diagonal legs
+
       // legs_[i]->computeIK(goal, home_stance_xyz);
       computeIK(goal, home_stance_xyz, i);
 
@@ -1708,35 +1711,44 @@ namespace hebi {
       start_leg_angles(1) = cmd_[leg_offset + 1].actuator().position().get();
       start_leg_angles(2) = cmd_[leg_offset + 2].actuator().position().get();
 
-      // calc FK with last sent command, get EndEffector in leg base frame
-      legs_[legIndex] -> getKinematics().getFK(HebiFrameTypeEndEffector, start_leg_angles, frames); // I assume this is in the frame of base frame
-      
-      // get foot position in com frame, add command
-      Eigen::Vector3d start_com_ee_xyz = frames[0].topRightCorner<3,1>(); 
+      // calc FK with last sent command, get EndEffector in leg base frame, get foot position in com frame
+      // legs_[legIndex] -> getKinematics().getFK(HebiFrameTypeEndEffector, start_leg_angles, frames); // I assume this is in the frame of base frame
+      // Eigen::Vector3d start_com_ee_xyz = frames[0].topRightCorner<3,1>(); 
+      Eigen::VectorXd start_com_ee_xyz(3);
+      computeFK(start_com_ee_xyz, start_leg_angles, legIndex);
       
       // calc foot position based on FK
       if(legIndex == 0 || legIndex == 5){ // left virtual leg
         for(int timeStep = 0; timeStep<=totalSteps; timeStep++){
-          double theta = (double)timeStep / totalSteps * 2*M_PI;//0 -> 2*M_PI
+          const int contactSteps = totalSteps * 0.5;
+          const int swingSteps = totalSteps - contactSteps;
+          double theta = 0;
+          if(timeStep > contactSteps)
+            theta = (double)(timeStep - contactSteps) / swingSteps * 2*M_PI;//0 -> 2*M_PI
           if(swingLeft){
             dzFoot = 20 * (1-cos(theta))/2;
           }else{
             dzFoot = 0;
           }
           dxFoot = (Ldx - curFootPos.first) * (1-cos(theta/2))/2 + curFootPos.first;
-          
-          
+        
           Eigen::Vector3d move_command = {dxFoot, 0, dzFoot};
           Eigen::VectorXd end_com_ee_xyz = start_com_ee_xyz + move_command * 0.01;
           // second IK for each feet and push to trajectory
-          Eigen::VectorXd end_leg_angles;
-          legs_[legIndex]->computeIK(end_leg_angles, end_com_ee_xyz);
+          Eigen::VectorXd end_leg_angles(3);
+          // legs_[legIndex]->computeIK(end_leg_angles, end_com_ee_xyz);
+          computeIK(end_leg_angles, end_com_ee_xyz, legIndex);
 
           positions.col(timeStep) = end_leg_angles;
         }
       }else{ // right virtual leg
         for(int timeStep = 0; timeStep<=totalSteps; timeStep++){
-          double theta = (double)timeStep / totalSteps * 2*M_PI;//0 -> 2*M_PI
+          const int contactSteps = totalSteps * 0.4; // contact time phase
+          const int swingSteps = totalSteps - contactSteps;
+          double theta = 0;
+          if(timeStep > contactSteps)
+            theta = (double)(timeStep - contactSteps) / swingSteps * 2*M_PI;//0 -> 2*M_PI
+
           if(swingLeft){
             dzFoot = 0;
           }else{
@@ -1755,8 +1767,9 @@ namespace hebi {
           Eigen::Vector3d move_command = {dxFoot, 0, dzFoot};
           Eigen::VectorXd end_com_ee_xyz = start_com_ee_xyz + move_command * 0.01;
           // second IK for each feet and push to trajectory
-          Eigen::VectorXd end_leg_angles;
-          legs_[legIndex]->computeIK(end_leg_angles, end_com_ee_xyz);
+          Eigen::VectorXd end_leg_angles(3);
+          // legs_[legIndex]->computeIK(end_leg_angles, end_com_ee_xyz);
+          computeIK(end_leg_angles, end_com_ee_xyz, legIndex);
 
           positions.col(timeStep) = end_leg_angles;
         }
@@ -1815,8 +1828,10 @@ namespace hebi {
       // hebi::robot_model::Matrix4dVector frames;
       // legs_[legIndex] -> getKinematics().getFK(HebiFrameTypeEndEffector, traj_angles, frames); // I assume this is in the frame of base frame
       // Eigen::Vector3d cmd_com_ee_xyz = frames[0].topRightCorner<3,1>();
-      // if(legIndex == 5 && (timeSpent >= totalTime-1 || timeSpent<=1))
-      //   std::cout << "Foot"<< legIndex <<" y:" << cmd_com_ee_xyz(1) << "\ttraj_vels" << traj_vels(0) << "@" << timeSpent << std::endl;
+      Eigen::VectorXd cmd_com_ee_xyz(3);
+      computeFK(cmd_com_ee_xyz, traj_angles, legIndex);
+      if(legIndex == 5)
+        std::cout << "Foot"<< legIndex <<" :\t" << traj_angles.transpose()<< "\n\t" <<legs_[legIndex]->getJointAngle().transpose() << "@" << timeSpent << std::endl;
     }
 
     saveCommand();

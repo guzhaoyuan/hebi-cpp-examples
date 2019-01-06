@@ -74,8 +74,8 @@ SET(DYNAMICWALKSOURCES
 )
 
 # add_executable(quadruped_control ${SOURCES} $<TARGET_OBJECTS:quadruped_core>)
-add_executable(testIK ${TESTSOURCES} $<TARGET_OBJECTS:quadruped_core>)
-add_executable(staticWalk ${STATICWALKSOURCES} $<TARGET_OBJECTS:quadruped_core>)
+# add_executable(testIK ${TESTSOURCES} $<TARGET_OBJECTS:quadruped_core>)
+# add_executable(staticWalk ${STATICWALKSOURCES} $<TARGET_OBJECTS:quadruped_core>)
 add_executable(dynamicsWalk ${DYNAMICWALKSOURCES} $<TARGET_OBJECTS:quadruped_core>)
 # qt5_use_modules(quadruped_control Core Gui Widgets)
 # qt5_use_modules(testIK Core Gui Widgets)
@@ -85,8 +85,8 @@ if (WIN32)
 target_link_libraries( quadruped_control hebi kernel32 ) # kernel32 for sleep commands.
 else()
 # target_link_libraries( quadruped_control hebi hebic++ m pthread)
-target_link_libraries( testIK hebi hebic++ m pthread)
-target_link_libraries( staticWalk hebi hebic++ m pthread)
+# target_link_libraries( testIK hebi hebic++ m pthread)
+# target_link_libraries( staticWalk hebi hebic++ m pthread)
 target_link_libraries( dynamicsWalk hebi hebic++ m pthread)
 endif()
 
