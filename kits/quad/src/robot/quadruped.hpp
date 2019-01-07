@@ -199,7 +199,7 @@ class Quadruped
 
     // wave gait params
     const double totalTime = 10;
-    const double stepSize = 8;
+    const double stepSize = 16;
 
     // Dynamic Walk params
     const double stepTime = 1*1;

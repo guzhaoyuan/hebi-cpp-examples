@@ -1434,20 +1434,24 @@ namespace hebi {
     start_leg_angles(2) = cmd_[leg_offset + 2].actuator().position().get();
 
   // calc FK with last sent command, get EndEffector in leg base frame
-    hebi::robot_model::Matrix4dVector frames;
-    legs_[footIndex] -> getKinematics().getFK(HebiFrameTypeEndEffector, start_leg_angles, frames); // I assume this is in the frame of base frame
-    Eigen::Vector3d start_com_ee_xyz = frames[0].topRightCorner<3,1>(); 
+    // hebi::robot_model::Matrix4dVector frames;
+    // legs_[footIndex] -> getKinematics().getFK(HebiFrameTypeEndEffector, start_leg_angles, frames); // I assume this is in the frame of base frame
+    // Eigen::Vector3d start_com_ee_xyz = frames[0].topRightCorner<3,1>(); 
+    Eigen::VectorXd start_com_ee_xyz(3);      
+    computeFK(start_com_ee_xyz, start_leg_angles, footIndex);
 
-  // IK for mid and end position
+  // IK for mid and end foot position
     Eigen::Vector3d mid_move = {0.01*dx/2, 0.01*dy/2, 0.01*dz}; // get base frame wrt com
     Eigen::VectorXd mid_com_ee_xyz = start_com_ee_xyz + mid_move;
-    Eigen::VectorXd mid_leg_angles;
-    legs_[footIndex]->computeIK(mid_leg_angles, mid_com_ee_xyz);
+    Eigen::VectorXd mid_leg_angles(3);
+    // legs_[footIndex]->computeIK(mid_leg_angles, mid_com_ee_xyz);
+    computeIK(mid_leg_angles, mid_com_ee_xyz, footIndex);
 
     Eigen::Vector3d end_move = {0.01*dx, 0.01*dy, 0}; // get base frame wrt com
     Eigen::VectorXd end_com_ee_xyz = start_com_ee_xyz + end_move;
-    Eigen::VectorXd end_leg_angles;
-    legs_[footIndex]->computeIK(end_leg_angles, end_com_ee_xyz);
+    Eigen::VectorXd end_leg_angles(3);
+    // legs_[footIndex]->computeIK(end_leg_angles, end_com_ee_xyz);      
+    computeIK(end_leg_angles, end_com_ee_xyz, footIndex);
 
     positions.col(0) = start_leg_angles;
     positions.col(1) = mid_leg_angles;
@@ -1462,7 +1466,7 @@ namespace hebi {
     swing_trajectories.push_back(trajectory::Trajectory::createUnconstrainedQp(
         times, positions, &velocities, &accelerations)); 
 
-    trajFootIndex = footIndex;
+    trajFootIndex = footIndex; // indicate to which foot the traj belong
   }
 
   void Quadruped::followFootTraj(int trajFootIndex, double timeSpent){
@@ -1504,7 +1508,7 @@ namespace hebi {
     for (auto legIndex : walkingLegs){
 
       // get last command
-      hebi::robot_model::Matrix4dVector frames;
+      // hebi::robot_model::Matrix4dVector frames;
       // Eigen::VectorXd start_leg_angles = legs_[legIndex] -> getJointAngle();
       Eigen::VectorXd start_leg_angles(3);
       int leg_offset = legIndex * num_joints_per_leg_;
@@ -1513,16 +1517,19 @@ namespace hebi {
       start_leg_angles(2) = cmd_[leg_offset + 2].actuator().position().get();
 
       // calc FK with last sent command, get EndEffector in leg base frame
-      legs_[legIndex] -> getKinematics().getFK(HebiFrameTypeEndEffector, start_leg_angles, frames); // I assume this is in the frame of base frame
+      // legs_[legIndex] -> getKinematics().getFK(HebiFrameTypeEndEffector, start_leg_angles, frames); // I assume this is in the frame of base frame
+      Eigen::VectorXd start_com_ee_xyz(3);      
+      computeFK(start_com_ee_xyz, start_leg_angles, legIndex);
       
       // get foot position in com frame, add joy command
-      Eigen::Vector3d start_com_ee_xyz = frames[0].topRightCorner<3,1>(); 
+      // Eigen::Vector3d start_com_ee_xyz = frames[0].topRightCorner<3,1>(); 
       Eigen::Vector3d move_command = {-0.01*dx, -0.01*dy, 0}; // get base frame wrt com
       Eigen::VectorXd end_com_ee_xyz = start_com_ee_xyz + move_command;
 
       // calc IK
-      Eigen::VectorXd end_leg_angles;
-      legs_[legIndex]->computeIK(end_leg_angles, end_com_ee_xyz);
+      Eigen::VectorXd end_leg_angles(3);
+      // legs_[legIndex]->computeIK(end_leg_angles, end_com_ee_xyz);
+      computeIK(end_leg_angles, end_com_ee_xyz, legIndex);
 
       positions.col(0) = start_leg_angles;
       positions.col(1) = end_leg_angles;
@@ -1569,6 +1576,7 @@ namespace hebi {
     sendCommand();
   }
 
+  // plan one step forward for all 4 legs
   void Quadruped::planWaveGait(){
     wave_gait_trajectories.clear();
 
@@ -1609,6 +1617,8 @@ namespace hebi {
     // std::cout<<"trajectory size: "<<wave_gait_trajectories.size()<<std::endl;
   }
   
+
+  // all these magic number here is relavant to the totalSteps
   void Quadruped::planBodyFootTraj(int legIndex, int timeStep, Eigen::MatrixXd &positions){
     assert(legIndex == 5 || legIndex == 1 || legIndex == 4 || legIndex == 0);
     
@@ -1618,7 +1628,8 @@ namespace hebi {
     double percentage = (double)timeStep/24;
     double theta = percentage*M_PI*2;
     double dyBody = 8*std::sin(theta); // hardcode first
-    // double dxBody = stepSize*percentage;
+    // double dxBody = stepSize*percentage; // linearly move body
+    // sin-ly move body
     double dxBody;
     if(timeStep<=3){
       double alpha = (double)timeStep / 3 * M_PI / 2; // 0 -> M_PI/2
@@ -1637,6 +1648,9 @@ namespace hebi {
       dxBody = stepSize + 4*stepSize/6*std::sin(alpha);
     }
 
+    // plan foot position based on timeStep
+    // move 5 -> 1 -> 4 -> 0 -> 5 repeatedly
+    // not able to distinguish single step and continuous walk, so every step is single step now.
     double dxFoot;
     double dzFoot;
     if(legIndex == 5)
@@ -1697,11 +1711,7 @@ namespace hebi {
       // std::cout<<dxFoot<<" - "<<dzFoot<<" @ "<<timeStep<< std::endl;
     }
 
-    // dxFoot = 0;
-    // dzFoot = 0;
     // std::cout<<"Base: "<<dxBody<<" - "<<dyBody<<", Foot"<<legIndex<<": "<<dxFoot<<" - "<<dzFoot<<" @ "<<timeStep<< std::endl;
-
-    hebi::robot_model::Matrix4dVector frames;
 
     Eigen::VectorXd start_leg_angles(3);
     int leg_offset = legIndex * num_joints_per_leg_;
@@ -1710,24 +1720,26 @@ namespace hebi {
     start_leg_angles(2) = cmd_[leg_offset + 2].actuator().position().get();
 
     // calc FK with last sent command, get EndEffector in leg base frame
-    legs_[legIndex] -> getKinematics().getFK(HebiFrameTypeEndEffector, start_leg_angles, frames); // I assume this is in the frame of base frame
-    
+    // hebi::robot_model::Matrix4dVector frames;
+    // legs_[legIndex] -> getKinematics().getFK(HebiFrameTypeEndEffector, start_leg_angles, frames); // I assume this is in the frame of base frame
+    // Eigen::Vector3d start_com_ee_xyz = frames[0].topRightCorner<3,1>(); 
+    Eigen::VectorXd start_com_ee_xyz(3);      
+    computeFK(start_com_ee_xyz, start_leg_angles, legIndex);
+
     // get foot position in com frame, add command
-    Eigen::Vector3d start_com_ee_xyz = frames[0].topRightCorner<3,1>(); 
     Eigen::Vector3d move_command = {dxFoot-dxBody, -dyBody, dzFoot};
     Eigen::VectorXd end_com_ee_xyz = start_com_ee_xyz + move_command * 0.01;
 
     // std::cout << "Foot"<< legIndex <<" xyz:\n" << start_com_ee_xyz <<" @ "<<timeStep<< std::endl;
-    if(legIndex == 5)
-      std::cout << "Foot"<< legIndex <<" y:" << end_com_ee_xyz(1) <<" \t@ "<<timeStep<< std::endl;
+    // if(legIndex == 5)
+    //   std::cout << "Foot"<< legIndex <<" y:" << end_com_ee_xyz(1) <<" \t@ "<<timeStep<< std::endl;
 
     // calc IK for Foot
-    Eigen::VectorXd end_leg_angles;
-    legs_[legIndex]->computeIK(end_leg_angles, end_com_ee_xyz);
-
+    Eigen::VectorXd end_leg_angles(3);
+    // legs_[legIndex]->computeIK(end_leg_angles, end_com_ee_xyz);
+    computeIK(end_leg_angles, end_com_ee_xyz, legIndex);
 
     positions.col(timeStep) = end_leg_angles;
-
   }
 
   void Quadruped::followWaveGait(double timeSpent){

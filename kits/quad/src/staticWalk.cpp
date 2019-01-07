@@ -156,6 +156,7 @@ int main(int argc, char** argv)
         if (state_run_time.count() >= startup_seconds)
         {
           cur_ctrl_state = QUAD_CTRL_STAND_UP2;
+          first_time_enter = true;
           state_enter_time = std::chrono::steady_clock::now(); 
         }
         break;
@@ -165,17 +166,18 @@ int main(int argc, char** argv)
         state_curr_time = std::chrono::steady_clock::now();
         state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
 
-        isFinished = quadruped -> pushAllLegs(state_run_time.count(), startup_seconds);
+        isFinished = quadruped -> pushAllLegs(state_run_time.count(), startup_seconds, first_time_enter);
         if (state_run_time.count() >= startup_seconds)
         {
           quadruped -> startBodyRUpdate();
-          cur_ctrl_state = QUAD_WAVE_GAIT;
+          cur_ctrl_state = QUAD_STATIC_WALK;
           first_time_enter = true;
           state_enter_time = std::chrono::steady_clock::now(); 
         }
         break;
       }
 
+      // STAND_UP3 is deprecated, we simply skip this state
       case QUAD_CTRL_STAND_UP3:
       {
         state_curr_time = std::chrono::steady_clock::now();
