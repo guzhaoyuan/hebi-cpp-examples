@@ -1242,6 +1242,7 @@ namespace hebi {
         auto base_frame = legs_[i] -> getBaseFrame();
         Eigen::VectorXd home_stance_xyz = (base_frame * base_stance_ee_xyz).topLeftCorner<3,1>(); // not use offset
         home_stance_xyz(0) += 0.015; // tune stance position to make COM right above the cross point of diagonal legs
+        home_stance_xyz(1) += 0.005; // tune stance position to make COM right above the cross point of diagonal legs
 
         Eigen::VectorXd goal(num_joints_per_leg_);
         computeIK(goal, home_stance_xyz, i);
@@ -1792,7 +1793,7 @@ namespace hebi {
     for(auto legIndex : walkingLegs){
       double dxFoot = 0;
       double dzFoot = 0;
-
+      const double moveBodyPercent = 0.1;
       // calc FK first
       hebi::robot_model::Matrix4dVector frames;
 
@@ -1826,9 +1827,9 @@ namespace hebi {
             double phi = (double)timeStep / totalSteps * 2*M_PI;//0 -> 2*M_PI 
             if(swingLeft){
               if(timeStep <= contactSteps)
-                dxFoot = (-0.5*stepSize) * (1-cos(phi/2))/2 + curFootPos.first; // move body half step forward
+                dxFoot = (-moveBodyPercent*dynamicStepSize) * (1-cos(phi/2)) + curFootPos.first; // move body half step forward
               else
-                dxFoot = (Ldx - (curFootPos.first - 0.5*stepSize)) * (1-cos(theta/2))/2 + (curFootPos.first - 0.5*stepSize);
+                dxFoot = (Ldx - (curFootPos.first - moveBodyPercent*dynamicStepSize)) * (1-cos(theta/2))/2 + (curFootPos.first - moveBodyPercent*dynamicStepSize);
             }else{
               dxFoot = (Ldx - curFootPos.first) * (1-cos(phi/2))/2 + curFootPos.first;
             }
@@ -1866,15 +1867,15 @@ namespace hebi {
               dxFoot = (Rdx - curFootPos.second) * (1-cos(phi/2))/2 + curFootPos.second;
             }else{
               if(timeStep<= contactSteps)
-                dxFoot = (-0.5*stepSize) * (1-cos(phi/2))/2 + curFootPos.second; // move body half step forward
+                dxFoot = (-moveBodyPercent*dynamicStepSize) * (1-cos(phi/2)) + curFootPos.second; // move body half step forward
               else
-                dxFoot = (Rdx - (curFootPos.second - 0.5*stepSize)) * (1-cos(theta/2))/2 + (curFootPos.second - 0.5*stepSize);
+                dxFoot = (Rdx - (curFootPos.second - moveBodyPercent*dynamicStepSize)) * (1-cos(theta/2))/2 + (curFootPos.second - moveBodyPercent*dynamicStepSize);
             }
           }
 
-          // if(legIndex == 4){
-          //   std::cout<<dxFoot<<" - "<<dzFoot<<" @ "<<timeStep<< std::endl;
-          // }
+          if(legIndex == 4){
+            std::cout<<dxFoot<<" - "<<dzFoot<<" @ "<<timeStep<< std::endl;
+          }
           // if(swingLeft)
           //     std::cout<<"not swing"<<std::endl;
           // else
@@ -1941,10 +1942,15 @@ namespace hebi {
       cmd_[leg_offset + 2].actuator().effort().set(traj_accs(2));
 
       // calc FK for debug
-      // Eigen::VectorXd cmd_com_ee_xyz(3);
-      // computeFK(cmd_com_ee_xyz, traj_angles, legIndex);
-      // if(legIndex == 5)
-      //   std::cout << "Foot"<< legIndex <<" :\t" << traj_angles.transpose()<< "\n\t" <<legs_[legIndex]->getJointAngle().transpose() << "@" << timeSpent << std::endl;
+      // if(legIndex == 5){
+      //   Eigen::VectorXd cmd_com_ee_xyz(3);
+      //   Eigen::VectorXd real_com_ee_xyz(3);
+      //   computeFK(cmd_com_ee_xyz, traj_angles, legIndex);
+      //   computeFK(real_com_ee_xyz, legs_[legIndex]->getJointAngle(), legIndex);
+
+      //   // std::cout << "Foot"<< legIndex <<" :\t" << traj_angles.transpose()<< "\n\t" <<legs_[legIndex]->getJointAngle().transpose() << "@" << timeSpent << std::endl;
+      //   std::cout << "Foot"<< legIndex <<" :\t" << cmd_com_ee_xyz.transpose() << "\n\t" << real_com_ee_xyz.transpose() << "@" << timeSpent << std::endl;
+      // }
     }
 
     saveCommand();

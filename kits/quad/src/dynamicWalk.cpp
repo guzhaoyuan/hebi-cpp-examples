@@ -106,7 +106,6 @@ int main(int argc, char** argv)
   bool first_time_enter = false;
   bool swingLeft = true;
   double Ldx, Rdx;
-  const double stepSize = 20;
   double stepTime = 20;
   
   while (control_execute.load(std::memory_order_acquire)) // I have no idea why this not working after remove Q application
@@ -204,7 +203,7 @@ int main(int argc, char** argv)
               }else{ // forward half step
                 std::cout<<"Half Step Forward"<<std::endl;
                 cur_walk_state = FORWARD;
-                Ldx = swingLeft?stepSize/2:-stepSize/2;
+                Ldx = swingLeft?quadruped -> getDynamicStepSize()/2:-quadruped -> getDynamicStepSize()/2;
                 Rdx = 0 - Ldx;
                 quadruped -> planDynamicGait(Ldx, Rdx, swingLeft);
                 swingLeft = !swingLeft;
@@ -218,7 +217,7 @@ int main(int argc, char** argv)
                 first_time_enter = true;
               }else{
                 std::cout<<"keep FORWARD"<<std::endl;
-                Ldx = swingLeft?stepSize/2:-stepSize/2;
+                Ldx = swingLeft?quadruped -> getDynamicStepSize()/2:-quadruped -> getDynamicStepSize()/2;
                 Rdx = 0 - Ldx;
                 quadruped -> planDynamicGait(Ldx, Rdx, swingLeft);
                 swingLeft = !swingLeft;

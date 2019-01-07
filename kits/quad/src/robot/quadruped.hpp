@@ -115,6 +115,7 @@ class Quadruped
     void planDynamicGait(double Ldx, double Rdx, bool swingLeft);
     void followDynamicGait(double timeSpent);
     double getStepTime(){return stepTime;}
+    double getDynamicStepSize(){return dynamicStepSize;}
     // double setHalfStepTime(double periodTime){periodTime = periodTime;}
     void recordFootPos(double Ldx = 0, double Rdx = 0){curFootPos = std::make_pair(Ldx, Rdx);}
 
@@ -201,7 +202,8 @@ class Quadruped
     const double stepSize = 8;
 
     // Dynamic Walk params
-    const double stepTime = 1.2*1;
+    const double stepTime = 1*1;
+    const double dynamicStepSize = 15;
 
     Eigen::Vector4d base_stance_ee_xyz; // expressed in base motor's frame
     Eigen::Vector4d base_stance_ee_xyz_offset; // expressed in base motor's frame
