@@ -5,3 +5,11 @@ projects/**/x64
 projects/**/*.user
 
 hebi/
+hebi-cpp/
+**/build/
+
+kits/quad/build
+kits/daisy/build
+
+.vscode/
+kits/quad.zip

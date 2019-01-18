@@ -30,7 +30,7 @@ Leg::Leg(double angle_rad, double distance, const Eigen::VectorXd& current_angle
   Eigen::Vector3d tmp;
   tmp << distance, 0, 0;
   transform.topRightCorner<3,1>() = rotate * tmp;
-  kin_->setBaseFrame(transform);
+  kin_->setBaseFrame(transform); // from center of the robot to the base joint of the leg
 
   seed_angles_.resize(num_joints_);
   if (configuration == LegConfiguration::Left)

@@ -517,6 +517,7 @@ Hexapod::Hexapod(std::shared_ptr<Group> group,
   // Start a background feedback handler
   if (group_)
   {
+    // group group_   bug, but does not affert performance 
     group->addFeedbackHandler([this] (const GroupFeedback& fbk)
     {
       // A -z vector in a local frame.
