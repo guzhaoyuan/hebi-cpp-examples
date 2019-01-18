@@ -105,7 +105,7 @@ int main(int argc, char** argv)
 
   bool first_time_enter = false;
   bool swingLeft = true;
-  double Ldx, Rdx;
+  double Ldx, Rdx; // Ldx is LF&RH, Rdx is dx for LH&RF
   double stepTime = 20;
   
   while (control_execute.load(std::memory_order_acquire)) // I have no idea why this not working after remove Q application
