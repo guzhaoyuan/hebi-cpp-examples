@@ -14,7 +14,7 @@ public:
   int index_;
 
   // Angle and distance from the center of the parent creature.
-  Leg(double angle_rad, double distance, const Eigen::VectorXd& current_angles, const HexapodParameters& params, bool is_dummy, int index, LegConfiguration configuration);
+  Leg(double angle_rad, double distance, const Eigen::VectorXd& current_angles, const Eigen::Vector4d& _mount_point,  const HexapodParameters& params, bool is_dummy, int index, LegConfiguration _configuration);
 
   // Compute jacobian given position and velocities.  Usually, this is done internally
   // int `computeState`, but if the position/velocity is known (e.g., external
@@ -29,8 +29,11 @@ public:
   Eigen::VectorXd computeTorques(const robot_model::MatrixXdVector& jacobian_com, const Eigen::MatrixXd& jacobian_ee, const Eigen::VectorXd& angles, const Eigen::VectorXd& vels, const Eigen::Vector3d& gravity_vec, const Eigen::Vector3d& foot_force);
 
   static constexpr int getNumJoints() { return num_joints_; };
-
+  void initStance(Eigen::VectorXd& current_angles);
   void updateStance(const Eigen::Vector3d& trans_vel, const Eigen::Vector3d& rotate_vel, const Eigen::VectorXd& current_angles, double dt);
+
+  void computeIK(Eigen::Vector3d& angles, const Eigen::VectorXd& ee_com_pos);
+  void computeFK(Eigen::Vector3d& ee_com_pos, Eigen::VectorXd angles);
 
   const double getLevelHomeStanceZ() const { return level_home_stance_xyz_(2); }
   const Eigen::Vector3d& getHomeStanceXYZ() const { return home_stance_xyz_; }
@@ -60,6 +63,7 @@ public:
 
 private:
 
+  LegConfiguration configuration;
   static constexpr int num_joints_ = 3;
   float stance_radius_; // [m]
   float body_height_; // [m]
@@ -74,6 +78,10 @@ private:
   Eigen::Vector3d cmd_stance_xyz_;
   Eigen::Vector3d stance_vel_xyz_;
   
+  Eigen::Vector4d mount_point;
+  const double L1 = 0.2795;
+  const double L2 = 0.272;
+
   std::unique_ptr<hebi::robot_model::RobotModel> kin_;
   // Note -- one mass element for each COM frame in the kinematics!
   Eigen::VectorXd masses_;

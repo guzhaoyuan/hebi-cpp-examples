@@ -208,6 +208,24 @@ Eigen::Matrix4d Hexapod::getBodyPoseFromFeet()
   res.topRightCorner<3,1>() = feet_xyz_com - base_xyz_com;
   return res;
 }
+void Hexapod::initStance(double t)
+{
+  for (int i = 0; i < num_legs_; ++i)
+  {
+    int num_joints = Leg::getNumJoints();
+    int leg_offset = i * num_joints;
+
+    std::lock_guard<std::mutex> guard(fbk_lock_);
+
+    Eigen::VectorXd tmp = VectorXd(3);
+    for (int j = 0; j < num_joints; ++j)
+    {
+      tmp[j] = positions_[leg_offset + j];
+    }
+
+    legs_[i]->initStance(tmp);
+  }
+}
 
 bool Hexapod::needToStep()
 {
@@ -472,66 +490,6 @@ Eigen::Vector3d Hexapod::getGravityDirection()
   return gravity_direction_;
 }
 
-void Hexapod::computeIK(Eigen::VectorXd& angles, const Eigen::VectorXd& ee_com_pos, const int legIndex){
-    assert(legIndex>=0 && legIndex<=5);
-
-    bool isLeft = legIndex == 0 || legIndex == 2 || legIndex == 4;
-    const double t = isLeft?(4.5057/100):(-4.5057/100);
-
-    double dZ = ee_com_pos(2) - mountPoints(2, legIndex);
-    double dX_com = ee_com_pos(0) - mountPoints(0, legIndex);
-    double dY_com = ee_com_pos(1) - mountPoints(1, legIndex);
-    
-    // std::cout<<dX_com<<" "<<dY_com<<" "<<dZ<<" "<<std::endl;
-
-    double dR_com = std::sqrt(dX_com*dX_com+dY_com*dY_com);
-    double dX_leg = dX_com*cos(-mountPoints(3,legIndex)) - dY_com*sin(-mountPoints(3,legIndex));
-    double dY_leg = dX_com*sin(-mountPoints(3,legIndex)) + dY_com*cos(-mountPoints(3,legIndex));
-
-    // std::cout<<dX_leg<<" "<<dY_leg<<" "<<std::endl;
-
-    double dPHI1T = std::atan2(dY_leg,dX_leg);
-    double sinPHI1 = std::max(std::min(t/dR_com, 1.), -1.);
-
-    if(abs(sinPHI1) == 1)
-        std::cout<<"capped trig for leg"<<legIndex<<".\n";
-    
-    angles(0) = asin(sinPHI1) + dPHI1T;
-
-    double dR = (dX_leg - sin(angles(0)) * t) / cos(angles(0));
-
-    double theta2, theta3;
-    try {
-      // protected divide
-      double cosPHI2 = std::max(std::min((L2*L2-dR*dR-dZ*dZ-L1*L1)/(-2*L1*std::sqrt(dR*dR+dZ*dZ)), 1.), -1.);
-      double cosPHI3 = std::max(std::min((dR*dR+dZ*dZ-L1*L1-L2*L2)/(-2*L1*L2), 1.), -1.);
-
-      if(std::abs(cosPHI2) == 1 || std::abs(cosPHI3) == 1)
-        std::cout<<"capped trig for leg"<<legIndex<<".\n";
-
-      theta2 = acos(cosPHI2); // theta2 always >= 0
-      theta3 = acos(cosPHI3); // theta3 always >= 0
-    } catch(...) {
-      // handle any exception
-      std::cerr << "Exception when calc theta2 theta3 @ Leg" << legIndex << std::endl;
-    }
-
-    int solution = 0;
-    if(solution == 0){
-      angles(1) = atan2(dZ,dR) + theta2;
-      angles(2) = theta3 - M_PI;
-    }else if(solution == 1){
-      angles(1) = atan2(dZ,dR) - theta2;
-      angles(2) = M_PI - theta3;
-    }
-
-    // because the installation difference between Daisy and Titan
-    if(isLeft)
-      angles(1) = -angles(1);
-    else
-      angles(2) = -angles(2);
-  }
-
 // Note -- because the "cmd_" object is a class member, we have to provide some constructor
 // here, and so we just give it a size '1' if there is no group.  This could become a smart
 // pointer instead?
@@ -562,21 +520,21 @@ Hexapod::Hexapod(std::shared_ptr<Group> group,
     hex_errors.first_out_of_range_leg = getFirstOutOfRange(positions_);
     hex_errors.m_stop_pressed = getMStopPressed(fbk);
   }
-
-  // TODO: generalize!
-  legs_.emplace_back(new Leg(30.0 * M_PI / 180.0, 0.2375, getLegFeedback(0), params, real_legs_.count(0)>0, 0, Leg::LegConfiguration::Left));
-  legs_.emplace_back(new Leg(-30.0 * M_PI / 180.0, 0.2375, getLegFeedback(1), params, real_legs_.count(1)>0, 1, Leg::LegConfiguration::Right));
-  legs_.emplace_back(new Leg(90.0 * M_PI / 180.0, 0.1875, getLegFeedback(2), params, real_legs_.count(2)>0, 2, Leg::LegConfiguration::Left));
-  legs_.emplace_back(new Leg(-90.0 * M_PI / 180.0, 0.1875, getLegFeedback(3), params, real_legs_.count(3)>0, 3, Leg::LegConfiguration::Right));
-  legs_.emplace_back(new Leg(150.0 * M_PI / 180.0, 0.2375, getLegFeedback(4), params, real_legs_.count(4)>0, 4, Leg::LegConfiguration::Left));
-  legs_.emplace_back(new Leg(-150.0 * M_PI / 180.0, 0.2375, getLegFeedback(5), params, real_legs_.count(5)>0, 5, Leg::LegConfiguration::Right));
-
   mountPoints << // 0 1 2 3 4 5
       0.2375 * cos(30.0 * M_PI / 180.0), 0.2375 * cos(-30.0 * M_PI / 180.0), 0, 0, 0.2375 * cos(150.0 * M_PI / 180.0), 0.2375 * cos(-150.0 * M_PI / 180.0), // x
       0.2375 * sin(30.0 * M_PI / 180.0), 0.2375 * sin(-30.0 * M_PI / 180.0), 0.1875, -0.1875, 0.2375 * sin(150.0 * M_PI / 180.0), 0.2375 * sin(-150.0 * M_PI / 180.0), // y
       0, 0, 0, 0, 0, 0, // z
       30.0 * M_PI / 180.0, -30.0 * M_PI / 180.0, 90.0 * M_PI / 180.0, -90.0 * M_PI / 180.0, 150.0 * M_PI / 180.0, -150.0 * M_PI / 180.0; // angle
-    
+   
+  // TODO: generalize!
+  legs_.emplace_back(new Leg(30.0 * M_PI / 180.0, 0.2375, getLegFeedback(0), mountPoints.col(0),  params, real_legs_.count(0)>0, 0, Leg::LegConfiguration::Left));
+  legs_.emplace_back(new Leg(-30.0 * M_PI / 180.0, 0.2375, getLegFeedback(1), mountPoints.col(1), params, real_legs_.count(1)>0, 1, Leg::LegConfiguration::Right));
+  legs_.emplace_back(new Leg(90.0 * M_PI / 180.0, 0.1875, getLegFeedback(2), mountPoints.col(2), params, real_legs_.count(2)>0, 2, Leg::LegConfiguration::Left));
+  legs_.emplace_back(new Leg(-90.0 * M_PI / 180.0, 0.1875, getLegFeedback(3), mountPoints.col(3), params, real_legs_.count(3)>0, 3, Leg::LegConfiguration::Right));
+  legs_.emplace_back(new Leg(150.0 * M_PI / 180.0, 0.2375, getLegFeedback(4), mountPoints.col(4), params, real_legs_.count(4)>0, 4, Leg::LegConfiguration::Left));
+  legs_.emplace_back(new Leg(-150.0 * M_PI / 180.0, 0.2375, getLegFeedback(5), mountPoints.col(5), params, real_legs_.count(5)>0, 5, Leg::LegConfiguration::Right));
+
+ 
 
   // Initialize step information
   last_step_legs_.insert(0);

@@ -23,7 +23,8 @@ bool Step::update(double t, Leg* leg)
 //  std::cout << leg->getHomeStanceXYZ() << std::endl;
   if (t == start_time_)
     touch_down_ = leg->getHomeStanceXYZ() - (overshoot_ * period_ * lift_off_vel_);
-
+    //touch_down_ = leg->getHomeStanceXYZ();
+    
   // Linearly interpolate along ground
 //  mid_step_1_ = 0.9 * lift_up_ + 0.1 * touch_down_;
 //  mid_step_2_ = 0.25 * lift_up_ + 0.75 * touch_down_;

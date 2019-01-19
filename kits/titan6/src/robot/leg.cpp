@@ -6,8 +6,8 @@ namespace hebi {
 using ActuatorType = hebi::robot_model::RobotModel::ActuatorType;
 using LinkType = hebi::robot_model::RobotModel::LinkType;
 
-Leg::Leg(double angle_rad, double distance, const Eigen::VectorXd& current_angles, const HexapodParameters& params, bool is_dummy, int index, LegConfiguration configuration)
-  : index_(index), stance_radius_(params.stance_radius_), body_height_(params.default_body_height_), spring_shift_(configuration == LegConfiguration::Right ? 3.75 : -3.75) // Nm
+Leg::Leg(double angle_rad, double distance, const Eigen::VectorXd& current_angles,  const Eigen::Vector4d& _mount_point, const HexapodParameters& params, bool is_dummy, int index, LegConfiguration configuration_)
+  : configuration(configuration_), index_(index), stance_radius_(params.stance_radius_), body_height_(params.default_body_height_), spring_shift_(configuration == LegConfiguration::Right ? 3.75 : -3.75) // Nm
 {
   kin_ = configuration == LegConfiguration::Left ?
     hebi::robot_model::RobotModel::loadHRDF("left.hrdf") :
@@ -21,6 +21,8 @@ Leg::Leg(double angle_rad, double distance, const Eigen::VectorXd& current_angle
     assert("false");
     return;
   }
+
+  mount_point = _mount_point;
 
   kin_->getMasses(masses_);
 
@@ -44,13 +46,11 @@ Leg::Leg(double angle_rad, double distance, const Eigen::VectorXd& current_angle
   level_home_stance_xyz_ = home_stance_xyz_;
 
   // Set initial stance position
-  Matrix4d end_point_frame;
-  kin_->getEndEffector(current_angles, end_point_frame);
-  fbk_stance_xyz_ = end_point_frame.topRightCorner<3,1>();
-  kin_->getEndEffector(seed_angles_, end_point_frame);
-  cmd_stance_xyz_ = end_point_frame.topRightCorner<3,1>();
+  computeFK(fbk_stance_xyz_, current_angles);
+  computeFK(cmd_stance_xyz_, seed_angles_);
+
   // TODO: initialize better here? What did the MATLAB code do? (nevermind -- that fix wasn't
-  //cmd_stance_xyz_ = fbk_stance_xyz_;
+  cmd_stance_xyz_ = fbk_stance_xyz_;
 }
 
 // Compute jacobian given position and velocities
@@ -124,9 +124,8 @@ void Leg::updateStance(const Eigen::Vector3d& trans_vel, const Eigen::Vector3d& 
                      cmd_stance_xyz_).eval();
 
   // Update from feedback
-  Matrix4d end_point_frame;
-  kin_->getEndEffector(current_angles, end_point_frame);
-  fbk_stance_xyz_ = end_point_frame.topRightCorner<3,1>();
+  // kin_->getEndEffector(current_angles, end_point_frame);
+  computeFK(fbk_stance_xyz_, current_angles);
 
   // Update home stance to match the current z height
   level_home_stance_xyz_(2) += trans_vel(2) * dt;
@@ -134,7 +133,89 @@ void Leg::updateStance(const Eigen::Vector3d& trans_vel, const Eigen::Vector3d& 
                      AngleAxisd(-0.2 * trans_vel(0), Eigen::Vector3d::UnitY()) *
                      level_home_stance_xyz_;
 }
+void Leg::computeIK(Eigen::Vector3d& angles, const Eigen::VectorXd& ee_com_pos)
+{
+  bool isLeft = configuration == LegConfiguration::Left;
+  const double t = configuration == LegConfiguration::Left ?(4.5057/100):(-4.5057/100);
 
+  double dZ = ee_com_pos(2) - mount_point(2);
+  double dX_com = ee_com_pos(0) - mount_point(0);
+  double dY_com = ee_com_pos(1) - mount_point(1);
+  
+  // std::cout<<dX_com<<" "<<dY_com<<" "<<dZ<<" "<<std::endl;
+
+  double dR_com = std::sqrt(dX_com*dX_com+dY_com*dY_com);
+  double dX_leg = dX_com*cos(-mount_point(3)) - dY_com*sin(-mount_point(3));
+  double dY_leg = dX_com*sin(-mount_point(3)) + dY_com*cos(-mount_point(3));
+
+  // std::cout<<dX_leg<<" "<<dY_leg<<" "<<std::endl;
+
+  double dPHI1T = std::atan2(dY_leg,dX_leg);
+  double sinPHI1 = std::max(std::min(t/dR_com, 1.), -1.);
+
+  if(abs(sinPHI1) == 1)
+      std::cout<<"capped trig for leg"<<index_<<".\n";
+  
+  angles(0) = asin(sinPHI1) + dPHI1T;
+
+  double dR = (dX_leg - sin(angles(0)) * t) / cos(angles(0));
+
+  double theta2, theta3;
+  try {
+    // protected divide
+    double cosPHI2 = std::max(std::min((L2*L2-dR*dR-dZ*dZ-L1*L1)/(-2*L1*std::sqrt(dR*dR+dZ*dZ)), 1.), -1.);
+    double cosPHI3 = std::max(std::min((dR*dR+dZ*dZ-L1*L1-L2*L2)/(-2*L1*L2), 1.), -1.);
+
+    if(std::abs(cosPHI2) == 1 || std::abs(cosPHI3) == 1)
+      std::cout<<"capped trig for leg"<<index_<<".\n";
+
+    theta2 = acos(cosPHI2); // theta2 always >= 0
+    theta3 = acos(cosPHI3); // theta3 always >= 0
+  } catch(...) {
+    // handle any exception
+    std::cerr << "Exception when calc theta2 theta3 @ Leg" << index_ << std::endl;
+  }
+
+  int solution = 0;
+  if(solution == 0){
+    angles(1) = atan2(dZ,dR) + theta2;
+    angles(2) = theta3 - M_PI;
+  }else if(solution == 1){
+    angles(1) = atan2(dZ,dR) - theta2;
+    angles(2) = M_PI - theta3;
+  }
+
+  // because the installation difference between Daisy and Titan
+  if(isLeft)
+    angles(1) = -angles(1);
+  else
+    angles(2) = -angles(2);
+}
+
+void Leg::computeFK(Eigen::Vector3d& ee_com_pos, Eigen::VectorXd angles){
+
+
+  bool isLeft = configuration == LegConfiguration::Left;
+  if(isLeft)
+    angles(1) = -angles(1);
+  else
+    angles(2) = -angles(2);
+  const double t = isLeft?(4.5057/100):(-4.5057/100);
+
+  double dR_leg = cos(angles(1))*(L1+L2*cos(angles(2))) - sin(angles(1))*L2*sin(angles(2));
+  double dX_leg = cos(angles(0))*dR_leg + sin(angles(0))*t;
+  double dY_leg = sin(angles(0))*dR_leg - cos(angles(0))*t;
+  double dZ_leg = sin(angles(1))*(L1+L2*cos(angles(2))) + cos(angles(1))*L2*sin(angles(2));
+
+  ee_com_pos(0) = cos(mount_point(3))*dX_leg - sin(mount_point(3))*dY_leg + mount_point(0);
+  ee_com_pos(1) = sin(mount_point(3))*dX_leg + cos(mount_point(3))*dY_leg + mount_point(1);
+  ee_com_pos(2) = dZ_leg + mount_point(2);
+}
+  
+void Leg::initStance(Eigen::VectorXd& current_angles)
+{
+  computeFK(cmd_stance_xyz_, current_angles);
+}
 void Leg::startStep(double t)
 {
   step_.reset(new Step(t, this)); // TODO: why not use fbk stance here?

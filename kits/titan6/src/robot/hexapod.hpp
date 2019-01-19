@@ -62,7 +62,7 @@ public:
   void updateMode(int num_toggles);
 
   Eigen::Matrix4d getBodyPoseFromFeet();
-
+  void initStance(double t);
   bool needToStep();
 
   bool isStepping();
@@ -93,7 +93,6 @@ public:
 
   Eigen::Vector3d getGravityDirection();
 
-  void computeIK(Eigen::VectorXd& angles, const Eigen::VectorXd& ee_com_pos, const int legIndex);
 
 private:
 
@@ -132,8 +131,6 @@ private:
   Mode mode_;
 
   Eigen::Matrix<double, 4, 6> mountPoints;    
-  const double L1 = 0.2795;
-  const double L2 = 0.272;
   
   // Allow Eigen member variables:
 public:

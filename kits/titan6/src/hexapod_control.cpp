@@ -182,23 +182,23 @@ std::unique_ptr<Hexapod> getHexapod(const HexapodParameters& params, bool is_dum
     return nullptr;
   }
 
-  if(hex_errors.first_out_of_range_leg != -1)
-  {
-    if (!is_quiet)
-    {
-      QMessageBox param_error;
-      param_error.setWindowTitle("Base module out of range!");
-      std::string message = "Base module out of range (leg " + std::to_string(hex_errors.first_out_of_range_leg + 1) + ")";
-      param_error.setText(QString(message.c_str()));
-      param_error.exec();
-    }
-    else
-    {
-      // Set to red!
-      hexapod->setLegColor(hex_errors.first_out_of_range_leg, 255, 0, 0);
-    }
-    return nullptr;
-  }
+  // if(hex_errors.first_out_of_range_leg != -1)
+  // {
+  //   if (!is_quiet)
+  //   {
+  //     QMessageBox param_error;
+  //     param_error.setWindowTitle("Base module out of range!");
+  //     std::string message = "Base module out of range (leg " + std::to_string(hex_errors.first_out_of_range_leg + 1) + ")";
+  //     param_error.setText(QString(message.c_str()));
+  //     param_error.exec();
+  //   }
+  //   else
+  //   {
+  //     // Set to red!
+  //     hexapod->setLegColor(hex_errors.first_out_of_range_leg, 255, 0, 0);
+  //   }
+  //   return nullptr;
+  // }
 
   if (hex_errors.m_stop_pressed)
   {
@@ -527,13 +527,13 @@ int main(int argc, char** argv)
           {
             Eigen::VectorXd leg_start = hexapod->getLegFeedback(i);
 
-            Eigen::VectorXd goal(3);
+            Eigen::Vector3d goal(3);
             auto base_frame = hexapod->getLeg(i) -> getKinematics().getBaseFrame();
-            Eigen::Vector4d tmp4(0.50, 0, -0.0, 0); // hard code first
+            Eigen::Vector4d tmp4(0.50, 0, -0.10, 0); // hard code first
             Eigen::VectorXd home_stance_xyz = (base_frame * tmp4).topLeftCorner<3,1>();
             
             
-            hexapod->computeIK(goal, home_stance_xyz, i);
+            hexapod->getLeg(i)->computeIK(goal, home_stance_xyz);
 
             Eigen::VectorXd leg_mid = goal;
             
@@ -541,7 +541,7 @@ int main(int argc, char** argv)
             home_stance_xyz = hexapod->getLeg(i)->getHomeStanceXYZ(); 
             
             
-            hexapod->computeIK(goal, home_stance_xyz, i);
+            hexapod->getLeg(i)->computeIK(goal, home_stance_xyz);
 
             Eigen::VectorXd leg_end = goal;
             // Convert for trajectories
@@ -554,8 +554,8 @@ int main(int argc, char** argv)
 
             // Set positions
             positions.col(0) = leg_start;
-            positions.col(1) = leg_mid ;
-            positions.col(2) = leg_end ;
+            positions.col(1) = leg_start ;
+            positions.col(2) = leg_mid ;
             positions.col(3) = leg_end;
             positions.col(4) = leg_end;
 
@@ -626,7 +626,9 @@ int main(int argc, char** argv)
           {
             curr_ctrl_state = TITAN6_TRIPOD_GAIT;
             first_time_enter = true;
-            state_enter_time = std::chrono::steady_clock::now(); 
+            state_enter_time = std::chrono::steady_clock::now();
+            
+            hexapod -> initStance(elapsed.count()); 
           }
           break;
         }
@@ -640,6 +642,8 @@ int main(int argc, char** argv)
 
           double ramp_up_scale = std::min(1.0, (state_run_time.count()) / 2.0);
           // stays in this state most of the time
+
+          
           hexapod->updateStance(
             translation_velocity_cmd.cast<double>(),
             rotation_velocity_cmd.cast<double>(),
