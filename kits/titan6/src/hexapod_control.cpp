@@ -492,6 +492,7 @@ int main(int argc, char** argv)
 
       translation_velocity_cmd = input->getTranslationVelocityCmd();
       rotation_velocity_cmd = input->getRotationVelocityCmd();
+      hexapod->updateMode(input->getAndResetModeToggleCount());
 
       // The first minute of every 30 minutes: record log?
       if (fmod(elapsed.count(), 1800) < 60)
@@ -567,9 +568,9 @@ int main(int argc, char** argv)
             double local_start = elapsed.count();
             double total = startup_seconds;
             times << local_start,
-                    local_start + total * 0.4,
-                    local_start + total * 0.8,
-                    local_start + total * 0.9,
+                    local_start + total * 0.25,
+                    local_start + total * 0.5,
+                    local_start + total * 0.75,
                     local_start + total;
             startup_trajectories.push_back(trajectory::Trajectory::createUnconstrainedQp(
               times, positions, &velocities, &accelerations));
@@ -633,25 +634,26 @@ int main(int argc, char** argv)
         case TITAN6_TRIPOD_GAIT:
         {
           mode->setText("Tripod Gait Mode");
+
           state_curr_time = std::chrono::steady_clock::now();
           state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
 
+          double ramp_up_scale = std::min(1.0, (state_run_time.count()) / 2.0);
           // stays in this state most of the time
           hexapod->updateStance(
             translation_velocity_cmd.cast<double>(),
             rotation_velocity_cmd.cast<double>(),
             dt.count());
-
           if (hexapod->needToStep())
           {
-            hexapod->startStep(elapsed.count());
+            hexapod->startStep(state_run_time.count());
           }
 
-          hexapod->updateSteps(elapsed.count());
+          hexapod->updateSteps(state_run_time.count());
 
           // Calculate how the weight is distributed
-          hexapod->computeFootForces(elapsed.count(), foot_forces);
-
+          hexapod->computeFootForces(state_run_time.count(), foot_forces);
+          foot_forces *= ramp_up_scale;
 
           Eigen::MatrixXd jacobian_ee;
           robot_model::MatrixXdVector jacobian_com;
@@ -660,7 +662,7 @@ int main(int argc, char** argv)
           {
             hebi::Leg* curr_leg = hexapod->getLeg(i);
             // TODO: add vels and torques
-            curr_leg->computeState(elapsed.count(), angles, vels, jacobian_ee, jacobian_com);
+            curr_leg->computeState(state_run_time.count(), angles, vels, jacobian_ee, jacobian_com);
 
             // For rendering:
             if (hexapod_display)
@@ -670,7 +672,7 @@ int main(int argc, char** argv)
             Eigen::Vector3d foot_force = foot_forces.block<3,1>(0,i);
             Eigen::Vector3d gravity_vec = hexapod->getGravityDirection() * 9.8;
             torques = hexapod->getLeg(i)->computeTorques(jacobian_com, jacobian_ee, angles, vels, gravity_vec, /*dynamic_comp_torque,*/ foot_force); // TODO:
-
+        
             hexapod->setCommand(i, &angles, &vels, &torques);
           }
           hexapod->sendCommand();

@@ -217,17 +217,22 @@ bool Hexapod::needToStep()
 
   Eigen::Matrix4d shift_pose = getBodyPoseFromFeet();
   auto stance_shift = shift_pose.topRightCorner<3,1>();
-
+  
   // Rotated too much
   float yaw = std::abs(std::atan2(shift_pose(1,0), shift_pose(0,0)));
   if (yaw > params_.step_threshold_rotate_)
+  {
     return true;
+  }
+    
 
   // Shifted too much in translation
   float sq_pos_norm = stance_shift(0) * stance_shift(0) + stance_shift(1) * stance_shift(1);
   float sq_vel_norm = vel_xyz_(0) * vel_xyz_(0) + vel_xyz_(1) * vel_xyz_(1);
   if ((std::sqrt(sq_pos_norm) + std::sqrt(sq_vel_norm) * Step::period_) > params_.step_threshold_shift_)
+  {
     return true;
+  }
 
   return false;
 }
