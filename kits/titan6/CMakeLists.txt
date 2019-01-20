@@ -88,9 +88,9 @@ add_executable(hexapod_control ${SOURCES} $<TARGET_OBJECTS:hexapod_core>)
 qt5_use_modules(hexapod_control Core Gui Widgets)
 
 if (WIN32) 
-target_link_libraries( hexapod_control hebi kernel32 ) # kernel32 for sleep commands.
+target_link_libraries( hexapod_control hebi kernel32 ${RBDL_LIBRARY}) # kernel32 for sleep commands.
 else()
-target_link_libraries( hexapod_control hebi hebic++ m pthread)
+target_link_libraries( hexapod_control hebi hebic++ m pthread ${RBDL_LIBRARY})
 endif()
 
 # Add ultra-conservative warnings.
@@ -127,10 +127,10 @@ add_custom_command(TARGET hexapod_control POST_BUILD
 # 2D Parameter setting GUI
 add_executable(parameter_gui_2d ${PARAMETER_GUI_2D_SOURCES} $<TARGET_OBJECTS:hexapod_core>)
 qt5_use_modules(parameter_gui_2d Core Gui Widgets)
-target_link_libraries(parameter_gui_2d hebi hebic++ m pthread)
+target_link_libraries(parameter_gui_2d hebi hebic++ m pthread ${RBDL_LIBRARY})
 
 add_executable(input_test ${INPUT_TEST_SOURCES})
-target_link_libraries( input_test hebi hebic++ m pthread )
+target_link_libraries( input_test hebi hebic++ m pthread ${RBDL_LIBRARY})
 
 # Add ultra-conservative warnings.
 if ( CMAKE_COMPILER_IS_GNUCC )

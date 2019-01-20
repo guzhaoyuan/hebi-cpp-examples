@@ -63,30 +63,25 @@ Leg::Leg(double angle_rad, double distance, const Eigen::VectorXd& current_angle
   // all vectors below are represented in leg base frame!!!
   if (configuration == LegConfiguration::Left)
   {
-    Matrix3d I1;
+    RigidBodyDynamics::Math::Matrix3d I1;
     I1 << 882225.81*10e-9,	 -44550.48*10e-9,	    138685.24*10e-9,
           -44550.48*10e-9,	 1688152.34*10e-9,	    -13138.04*10e-9,
           138685.24*10e-9,	 -13138.04*10e-9,	    1136465.63*10e-9;
     body_base = RigidBodyDynamics::Body( 1.468,                                // mass
-                      Vector3d(0.01256, 0.00909, 0.04847),  // COM
+                      RigidBodyDynamics::Math::Vector3d(0.01256, 0.00909, 0.04847),  // COM
                       I1);                                  // inertia
     
     joint_float = RigidBodyDynamics::Joint(RigidBodyDynamics::JointTypeFloatingBase);
     // 0 is the floating base
     body_base_id = model -> AddBody(0, RigidBodyDynamics::Math::Xtrans(Vector3d(0,0,0)), joint_float, body_base);
 
-    Matrix3d I2;
-    Vector3d com_pos(0.01256, 0.00909, 0.04847);
-
-    const Matrix3d& I2_test = I2;
-    const Vector3d& com_pos_test = com_pos;
-    const double mass = 1.742;
+    RigidBodyDynamics::Math::Matrix3d I2;
     I2 << 1025508.94*10e-9,	-1114524.54*10e-9,	    25297.09*10e-9,
 	       -1114524.54*10e-9,	11305007.48*10e-9,	    18227.23*10e-9,
 	          25297.09*10e-9,	    8227.23*10e-9,	    11190881.72*10e-9;
-    body_shoulder = RigidBodyDynamics::Body( mass, 
-                      com_pos_test, 
-                      I2_test);
+    body_shoulder = RigidBodyDynamics::Body( 1.742, 
+                      RigidBodyDynamics::Math::Vector3d(0.01256, 0.00909, 0.04847), 
+                      I2);
   }
   else
   {
