@@ -1,7 +1,9 @@
 #include <memory>
+#include <rbdl/rbdl.h>
 #include "robot_model.hpp"
 #include "step.hpp"
 #include "hexapod_parameters.hpp"
+
 
 namespace hebi {
 
@@ -69,7 +71,7 @@ private:
   float body_height_; // [m]
   const float spring_shift_; // [N*m] compensate for the spring torques
   Eigen::VectorXd seed_angles_;
-
+  // TODO: leg should hold fbk angles 
   std::unique_ptr<Step> step_;
 
   Eigen::Vector3d home_stance_xyz_;
@@ -81,10 +83,15 @@ private:
   Eigen::Vector4d mount_point;
   const double L1 = 0.2795;
   const double L2 = 0.272;
+  const double left_tran =  0.0425;
+  const double left_d1Z = 0.07105;  // from base center to first joint, distance Z
 
   std::unique_ptr<hebi::robot_model::RobotModel> kin_;
   // Note -- one mass element for each COM frame in the kinematics!
   Eigen::VectorXd masses_;
+
+  // rbdl element
+  RigidBodyDynamics::Model* model;
 
   // Allow Eigen member variables:
 public:

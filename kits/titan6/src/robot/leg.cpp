@@ -1,6 +1,7 @@
 #include "leg.hpp"
 #include <iostream>
 
+
 namespace hebi {
 
 using ActuatorType = hebi::robot_model::RobotModel::ActuatorType;
@@ -51,6 +52,47 @@ Leg::Leg(double angle_rad, double distance, const Eigen::VectorXd& current_angle
 
   // TODO: initialize better here? What did the MATLAB code do? (nevermind -- that fix wasn't
   cmd_stance_xyz_ = fbk_stance_xyz_;
+
+
+  // build rbdl model 
+  model = new RigidBodyDynamics::Model();
+  unsigned int body_base_id, body_shoulder_id, body_knee_id;
+  RigidBodyDynamics::Body body_base, body_shoulder, body_knee;
+  RigidBodyDynamics::Joint joint_float, joint_base, joint_shoulder, joint_knee;
+  model -> gravity = Vector3d(0, 0, -9.81); // use chassis body frame direction direction
+  // all vectors below are represented in leg base frame!!!
+  if (configuration == LegConfiguration::Left)
+  {
+    Matrix3d I1;
+    I1 << 882225.81*10e-9,	 -44550.48*10e-9,	    138685.24*10e-9,
+          -44550.48*10e-9,	 1688152.34*10e-9,	    -13138.04*10e-9,
+          138685.24*10e-9,	 -13138.04*10e-9,	    1136465.63*10e-9;
+    body_base = RigidBodyDynamics::Body( 1.468,                                // mass
+                      Vector3d(0.01256, 0.00909, 0.04847),  // COM
+                      I1);                                  // inertia
+    
+    joint_float = RigidBodyDynamics::Joint(RigidBodyDynamics::JointTypeFloatingBase);
+    // 0 is the floating base
+    body_base_id = model -> AddBody(0, RigidBodyDynamics::Math::Xtrans(Vector3d(0,0,0)), joint_float, body_base);
+
+    Matrix3d I2;
+    Vector3d com_pos(0.01256, 0.00909, 0.04847);
+
+    const Matrix3d& I2_test = I2;
+    const Vector3d& com_pos_test = com_pos;
+    const double mass = 1.742;
+    I2 << 1025508.94*10e-9,	-1114524.54*10e-9,	    25297.09*10e-9,
+	       -1114524.54*10e-9,	11305007.48*10e-9,	    18227.23*10e-9,
+	          25297.09*10e-9,	    8227.23*10e-9,	    11190881.72*10e-9;
+    body_shoulder = RigidBodyDynamics::Body( mass, 
+                      com_pos_test, 
+                      I2_test);
+  }
+  else
+  {
+
+  }
+
 }
 
 // Compute jacobian given position and velocities
@@ -192,7 +234,8 @@ void Leg::computeIK(Eigen::Vector3d& angles, const Eigen::VectorXd& ee_com_pos)
     angles(2) = -angles(2);
 }
 
-void Leg::computeFK(Eigen::Vector3d& ee_com_pos, Eigen::VectorXd angles){
+void Leg::computeFK(Eigen::Vector3d& ee_com_pos, Eigen::VectorXd angles)
+{
 
 
   bool isLeft = configuration == LegConfiguration::Left;

@@ -16,6 +16,9 @@ find_package(Qt5 REQUIRED COMPONENTS Core Gui Widgets NO_CMAKE_PATH)
 
 find_package(Doxygen)
 
+LIST( APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/src/cmake )
+find_package (RBDL REQUIRED)
+
 # Get the C++ API directory:
 set(ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../..)
 get_filename_component(ROOT_DIR "${ROOT_DIR}" REALPATH)

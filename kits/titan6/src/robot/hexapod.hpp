@@ -5,7 +5,7 @@
 
 #include "leg.hpp"
 #include "hexapod_parameters.hpp"
-
+#include "../estimation/daisy_fbk_struct.hpp"
 #include <Eigen/Dense>
 #include <memory>
 #include <set>
@@ -41,7 +41,7 @@ public:
   static std::unique_ptr<Hexapod> createPartial(const HexapodParameters& params, std::set<int> real_legs, HexapodErrors& hex_errors);
   static std::unique_ptr<Hexapod> createDummy(const HexapodParameters& params);
 
-  static double getFeedbackPeriodMs() { return 5; }
+  static double getFeedbackPeriodMs() { return 10; }
 
   virtual ~Hexapod() noexcept;
 
@@ -93,10 +93,16 @@ public:
 
   Eigen::Vector3d getGravityDirection();
 
+  // added 2019-01-20 state estimate experiment! very important 
+  void initStateEstimation();
+  void updateStateEstimation();
+  void publishStateEstimation();
 
 private:
 
   std::chrono::time_point<std::chrono::steady_clock> last_fbk;
+  std::chrono::time_point<std::chrono::steady_clock> curr_fbk;
+  std::chrono::duration<double, std::ratio<1>> fbk_dt;
 
   // NOTE: remainder are "dummy" legs.
   std::set<int> real_legs_;
@@ -130,7 +136,18 @@ private:
 
   Mode mode_;
 
-  Eigen::Matrix<double, 4, 6> mountPoints;    
+  Eigen::Matrix<double, 4, 6> mountPoints;  
+
+  // added 2019-01-20 state estimate experiment! very important 
+  // first just realize what we learnt from ETH paper   
+  int state_size;
+  int measure_size;
+
+  double prediction_dt;  //time between two consecutive predictions
+  double measurement_dt; //time between two consecutive measurement corrections
+  std::vector<daisyFbkLeg> fbk_legs;
+  std::vector<daisyIMU> fbk_imus;   // the base imu
+
   
   // Allow Eigen member variables:
 public:

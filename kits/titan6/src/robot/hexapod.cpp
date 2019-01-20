@@ -139,8 +139,8 @@ void Hexapod::setCommand(int leg_index, const VectorXd* angles, const VectorXd* 
 
 void Hexapod::sendCommand()
 {
-  if (group_)
-    group_->sendCommand(cmd_);
+  // if (group_)
+  //   group_->sendCommand(cmd_);
 }
 
 bool Hexapod::setGains()
@@ -490,6 +490,21 @@ Eigen::Vector3d Hexapod::getGravityDirection()
   return gravity_direction_;
 }
 
+void Hexapod::initStateEstimation()
+{
+
+}
+
+void Hexapod::updateStateEstimation()
+{
+
+}
+
+void Hexapod::publishStateEstimation()
+{
+
+}
+
 // Note -- because the "cmd_" object is a class member, we have to provide some constructor
 // here, and so we just give it a size '1' if there is no group.  This could become a smart
 // pointer instead?
@@ -545,6 +560,10 @@ Hexapod::Hexapod(std::shared_ptr<Group> group,
   gravity_direction_ = -Eigen::Vector3d::UnitZ();
 
   last_fbk = std::chrono::steady_clock::now();
+  curr_fbk = std::chrono::steady_clock::now();
+  // init fbk structures
+  fbk_legs.resize(num_legs_);
+
   // Start a background feedback handler
   if (group_)
   {
@@ -557,15 +576,42 @@ Hexapod::Hexapod(std::shared_ptr<Group> group,
       avg_grav.setZero();
 
       std::lock_guard<std::mutex> guard(fbk_lock_);
-      last_fbk = std::chrono::steady_clock::now();
+      curr_fbk = std::chrono::steady_clock::now();
+      fbk_dt = curr_fbk - last_fbk;
+      last_fbk = curr_fbk;
+      // std::cout << "Time since last feedback: " << fbk_dt.count() << std::endl;
+
       assert(fbk.size() == Leg::getNumJoints() * real_legs_.size());
 
       // Copy data into an array
       copyIntoPositions(positions_, &fbk, real_legs_);
+      // I do not like this dangling position
+
 
       // Get averaged body-frame IMU data for each leg
       // TODO: For each, CHECK THIS IS VALID/HAS FEEDBACK!
       int num_leg_joints = Leg::getNumJoints();
+      for (int i = 0; i< num_legs_; i++)
+      {
+        
+        fbk_legs[i].joint_ang(0) = fbk[i * num_leg_joints].actuator().position().get();
+        fbk_legs[i].joint_ang(1) = fbk[i * num_leg_joints + 1].actuator().position().get();
+        fbk_legs[i].joint_ang(2) = fbk[i * num_leg_joints + 2].actuator().position().get();
+        fbk_legs[i].joint_vel(0) = fbk[i * num_leg_joints].actuator().velocity().get();
+        fbk_legs[i].joint_vel(1) = fbk[i * num_leg_joints + 1].actuator().velocity().get();
+        fbk_legs[i].joint_vel(2) = fbk[i * num_leg_joints + 2].actuator().velocity().get();
+        fbk_legs[i].joint_tau(0) = fbk[i * num_leg_joints].actuator().effort().get();
+        fbk_legs[i].joint_tau(1) = fbk[i * num_leg_joints + 1].actuator().effort().get();
+        fbk_legs[i].joint_tau(2) = fbk[i * num_leg_joints + 2].actuator().effort().get();
+        
+        
+        hebi::Vector3f tmp = fbk[i * num_leg_joints].imu().accelerometer().get();
+        fbk_imus[i].acc = Eigen::Vector3d(tmp.getX(), tmp.getY(), tmp.getZ());
+        tmp = fbk[i * num_leg_joints].imu().gyro().get();
+        fbk_imus[i].gyro = Eigen::Vector3d(tmp.getX(), tmp.getY(), tmp.getZ());
+      }
+
+      // this real or not real legs are pretty annoying 
       int num_legs_used = std::max((int)real_legs_.size(), 1);
       int leg_count = 0;
       for (int i = 0; i < 6 && leg_count < num_legs_used; ++i)

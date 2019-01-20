@@ -640,7 +640,7 @@ int main(int argc, char** argv)
           state_curr_time = std::chrono::steady_clock::now();
           state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
 
-          double ramp_up_scale = std::min(1.0, (state_run_time.count()) / 2.0);
+          double ramp_up_scale = std::min(1.0, (state_run_time.count()) / 4.0);
           // stays in this state most of the time
 
           
