@@ -91,7 +91,10 @@ private:
   Eigen::VectorXd masses_;
 
   // rbdl element
-  RigidBodyDynamics::Model* model;
+  RigidBodyDynamics::Model* model;  
+  unsigned int body_base_id, body_1_id, body_2_id, body_3_id;
+  RigidBodyDynamics::Body body_base, body_1, body_2, body_3;
+  RigidBodyDynamics::Joint joint_float, joint_1, joint_2, joint_3;
 
   // Allow Eigen member variables:
 public:

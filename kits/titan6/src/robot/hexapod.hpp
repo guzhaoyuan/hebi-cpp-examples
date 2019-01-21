@@ -145,6 +145,7 @@ private:
 
   double prediction_dt;  //time between two consecutive predictions
   double measurement_dt; //time between two consecutive measurement corrections
+  // in estimation/daisy_fbk_struct.hpp
   std::vector<daisyFbkLeg> fbk_legs;
   std::vector<daisyIMU> fbk_imus;   // the base imu
 

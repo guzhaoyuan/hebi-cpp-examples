@@ -56,36 +56,100 @@ Leg::Leg(double angle_rad, double distance, const Eigen::VectorXd& current_angle
 
   // build rbdl model 
   model = new RigidBodyDynamics::Model();
-  unsigned int body_base_id, body_shoulder_id, body_knee_id;
-  RigidBodyDynamics::Body body_base, body_shoulder, body_knee;
-  RigidBodyDynamics::Joint joint_float, joint_base, joint_shoulder, joint_knee;
+
   model -> gravity = Vector3d(0, 0, -9.81); // use chassis body frame direction direction
   // all vectors below are represented in leg base frame!!!
   if (configuration == LegConfiguration::Left)
   {
+    // joint float (at the center of the base) -> base -> joint1 -> link1 -> joint2 -> link2 -> joint3 -> link3
+    joint_float = RigidBodyDynamics::Joint(RigidBodyDynamics::JointTypeFloatingBase);
+    RigidBodyDynamics::Math::Matrix3d I_base;
+    I_base << 533112*10e-9,	 85290  *10e-9,	    673     *10e-9,
+               85290*10e-9,	 959826 *10e-9,	    808     *10e-9,
+                 673*10e-9,	  808   *10e-9,	    1301756 *10e-9;   // this is wrong but tolerable
+    body_base = RigidBodyDynamics::Body( 1.280,                                // mass
+                      RigidBodyDynamics::Math::Vector3d(15*10e-3, 1.775*10e-3, 0),  // COM
+                      I_base);                                  // inertia
+    // 0 is the floating base
+    body_base_id = model -> AddBody(0, RigidBodyDynamics::Math::Xtrans(Vector3d(0,0,0)), joint_float, body_base);
+
+    joint_1 = RigidBodyDynamics::Joint(RigidBodyDynamics::JointTypeRevolute, RigidBodyDynamics::Math::Vector3d(0,0,1));
     RigidBodyDynamics::Math::Matrix3d I1;
     I1 << 882225.81*10e-9,	 -44550.48*10e-9,	    138685.24*10e-9,
           -44550.48*10e-9,	 1688152.34*10e-9,	    -13138.04*10e-9,
           138685.24*10e-9,	 -13138.04*10e-9,	    1136465.63*10e-9;
-    body_base = RigidBodyDynamics::Body( 1.468,                                // mass
-                      RigidBodyDynamics::Math::Vector3d(0.01256, 0.00909, 0.04847),  // COM
-                      I1);                                  // inertia
+    body_1 = RigidBodyDynamics::Body( 1.468,                                // mass
+                      RigidBodyDynamics::Math::Vector3d(-12.56*10e-3, 9.09*10e-3, 48.47*10e-3),  // COM
+                      I1);// inertia
+    body_1_id = model -> AddBody(body_base_id, RigidBodyDynamics::Math::Xtrans(Vector3d(0,0,16*10e-3)), joint_1, body_1);
+                                  
     
-    joint_float = RigidBodyDynamics::Joint(RigidBodyDynamics::JointTypeFloatingBase);
-    // 0 is the floating base
-    body_base_id = model -> AddBody(0, RigidBodyDynamics::Math::Xtrans(Vector3d(0,0,0)), joint_float, body_base);
 
+    joint_2 = RigidBodyDynamics::Joint(RigidBodyDynamics::JointTypeRevolute, RigidBodyDynamics::Math::Vector3d(0,1,0));
     RigidBodyDynamics::Math::Matrix3d I2;
     I2 << 1025508.94*10e-9,	-1114524.54*10e-9,	    25297.09*10e-9,
 	       -1114524.54*10e-9,	11305007.48*10e-9,	    18227.23*10e-9,
-	          25297.09*10e-9,	    8227.23*10e-9,	    11190881.72*10e-9;
-    body_shoulder = RigidBodyDynamics::Body( 1.742, 
-                      RigidBodyDynamics::Math::Vector3d(0.01256, 0.00909, 0.04847), 
+	          25297.09*10e-9,	    18227.23*10e-9,	    11190881.72*10e-9;
+    body_2 = RigidBodyDynamics::Body( 1.742, 
+                      RigidBodyDynamics::Math::Vector3d(238.31*10e-3, -7.17*10e-3, -1.31*10e-3), 
                       I2);
+    body_2_id = model -> AddBody(body_1_id, RigidBodyDynamics::Math::Xtrans(Vector3d(0,-8.55*10e-3,55*10e-3)), joint_2, body_2);
+     
+    joint_3 = RigidBodyDynamics::Joint(RigidBodyDynamics::JointTypeRevolute, RigidBodyDynamics::Math::Vector3d(0,-1,0));
+    RigidBodyDynamics::Math::Matrix3d I3;
+    I3 <<      93933*10e-9,	     -53812*10e-9,	    -1.03*10e-9,
+	            -53812*10e-9,	    2680631*10e-9,	    -0.32*10e-9,
+	             -1.03*10e-9,	      -0.32*10e-9,	  2660562*10e-9;
+    body_3 = RigidBodyDynamics::Body( 0.27095, 
+                      RigidBodyDynamics::Math::Vector3d(88.91*10e-3, -17.70*10e-3, 0*10e-3), 
+                      I3);
+    body_3_id = model -> AddBody(body_2_id, RigidBodyDynamics::Math::Xtrans(Vector3d(279.5*10e-3,-31.05*10e-3,0*10e-3)), joint_3, body_3);
   }
   else
   {
+    // joint float (at the center of the base) -> base -> joint1 -> link1 -> joint2 -> link2 -> joint3 -> link3
+    joint_float = RigidBodyDynamics::Joint(RigidBodyDynamics::JointTypeFloatingBase);
+    RigidBodyDynamics::Math::Matrix3d I_base;
+    I_base << 533112*10e-9,	 85290  *10e-9,	    673     *10e-9,
+               85290*10e-9,	 959826 *10e-9,	    808     *10e-9,
+                 673*10e-9,	  808   *10e-9,	    1301756 *10e-9;   // this is wrong but tolerable
+    body_base = RigidBodyDynamics::Body( 1.280,                                // mass
+                      RigidBodyDynamics::Math::Vector3d(15*10e-3, 1.775*10e-3, 0),  // COM
+                      I_base);                                  // inertia
+    // 0 is the floating base
+    body_base_id = model -> AddBody(0, RigidBodyDynamics::Math::Xtrans(Vector3d(0,0,0)), joint_float, body_base);
 
+    joint_1 = RigidBodyDynamics::Joint(RigidBodyDynamics::JointTypeRevolute, RigidBodyDynamics::Math::Vector3d(0,0,1));
+    RigidBodyDynamics::Math::Matrix3d I1;
+    I1 << 1138475*10e-9,	 77725*10e-9,	    14289*10e-9,
+          77725*10e-9,	 1975759*10e-9,	    -1151*10e-9,
+          14289*10e-9,	 -1151*10e-9,	    1280182*10e-9;
+    body_1 = RigidBodyDynamics::Body( 1.645,                                // mass
+                      RigidBodyDynamics::Math::Vector3d(-10.71*10e-3, 10.14*10e-3, 43.11*10e-3),  // COM
+                      I1);// inertia
+    body_1_id = model -> AddBody(body_base_id, RigidBodyDynamics::Math::Xtrans(Vector3d(0,0,16*10e-3)), joint_1, body_1);
+                                  
+    
+
+    joint_2 = RigidBodyDynamics::Joint(RigidBodyDynamics::JointTypeRevolute, RigidBodyDynamics::Math::Vector3d(0,1,0));
+    RigidBodyDynamics::Math::Matrix3d I2;
+    I2 << 962949*10e-9,	794861*10e-9,	    -40378*10e-9,
+	       794861*10e-9,	8860812*10e-9,	    16263*10e-9,
+	          -40378*10e-9,	    16263*10e-9,	    8716509*10e-9;
+    body_2 = RigidBodyDynamics::Body( 1.742, 
+                      RigidBodyDynamics::Math::Vector3d(244.91*10e-3, 8.03*10e-3, 1.35*10e-3), 
+                      I2);
+    body_2_id = model -> AddBody(body_1_id, RigidBodyDynamics::Math::Xtrans(Vector3d(0,-8.55*10e-3,55*10e-3)), joint_2, body_2);
+     
+    joint_3 = RigidBodyDynamics::Joint(RigidBodyDynamics::JointTypeRevolute, RigidBodyDynamics::Math::Vector3d(0,-1,0));
+    RigidBodyDynamics::Math::Matrix3d I3;
+    I3 <<      93933*10e-9,	     53812*10e-9,	    -1.03*10e-9,
+	            53812*10e-9,	    2680631*10e-9,	    -0.32*10e-9,
+	             -1.03*10e-9,	      -0.32*10e-9,	  2660562*10e-9;
+    body_3 = RigidBodyDynamics::Body( 0.27095, 
+                      RigidBodyDynamics::Math::Vector3d(103.91*10e-3, 17.06*10e-3, 0*10e-3), 
+                      I3);
+    body_3_id = model -> AddBody(body_2_id, RigidBodyDynamics::Math::Xtrans(Vector3d(279.5*10e-3,31.05*10e-3,0*10e-3)), joint_3, body_3);
   }
 
 }
