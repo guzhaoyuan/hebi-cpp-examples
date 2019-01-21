@@ -612,17 +612,21 @@ Hexapod::Hexapod(std::shared_ptr<Group> group,
         hebi::Vector3f tmp = fbk[i * num_leg_joints].imu().accelerometer().get();
         fbk_imus[i].acc_s = Eigen::Vector3d(tmp.getX(), tmp.getY(), tmp.getZ());
         tmp = fbk[i * num_leg_joints].imu().gyro().get();
-        fbk_imus[i].gyro = Eigen::Vector3d(tmp.getX(), tmp.getY(), tmp.getZ());
+        fbk_imus[i].gyro_s = Eigen::Vector3d(tmp.getX(), tmp.getY(), tmp.getZ());
       }
-      // print acc in body frame       
+      // print acc and gyro in body frame       
       for (int i = 0; i< num_legs_; i++)
       {
         auto base_frame = legs_[i] -> getKinematics().getBaseFrame();
         Matrix3d rotation_bs = base_frame.topLeftCorner<3,3>();
         Vector3d distance_bs = base_frame.topRightCorner<3,1>();
-        Vector3d w_b = rotation_bs * fbk_imus[i].gyro;
-        fbk_imus[i].acc_b = rotation_bs * fbk_imus[i].acc_s - w_b.cross(w_b.cross(distance_bs));
-        std::cout << fbk_imus[i].acc_b(0) << "\t" << fbk_imus[i].acc_b(1) << "\t" << fbk_imus[i].acc_b(2) << std::endl; 
+
+        fbk_imus[i].gyro_b = rotation_bs*fbk_imus[i].gyro_s;
+        std::cout << " gyro: " << fbk_imus[i].gyro_b(0) << "\t" << fbk_imus[i].gyro_b(1) << "\t" << fbk_imus[i].gyro_b(2) << std::endl; 
+
+        // rigid body dynamics, check wiki
+        fbk_imus[i].acc_b = rotation_bs * fbk_imus[i].acc_s - fbk_imus[i].gyro_b.cross(fbk_imus[i].gyro_b.cross(distance_bs));
+        std::cout << " acce: "  << fbk_imus[i].acc_b(0) << "\t" << fbk_imus[i].acc_b(1) << "\t" << fbk_imus[i].acc_b(2) << std::endl; 
       }
 
 

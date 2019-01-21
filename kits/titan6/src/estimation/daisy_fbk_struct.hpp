@@ -13,7 +13,8 @@ namespace hebi {
     struct daisyIMU {
         Vector3d acc_s;   // in sensor frame 
         Vector3d acc_b;     // in body frame 
-        Vector3d gyro;
+        Vector3d gyro_s;
+        Vector3d gyro_b;
     };
 
 }

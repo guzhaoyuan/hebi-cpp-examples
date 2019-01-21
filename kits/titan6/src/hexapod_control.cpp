@@ -633,6 +633,8 @@ int main(int argc, char** argv)
           break;
         }
 
+        // TODO: add a state, do nothing, but let hexapod to record sensor bias
+
         case TITAN6_TRIPOD_GAIT:
         {
           mode->setText("Tripod Gait Mode");
