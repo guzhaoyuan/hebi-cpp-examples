@@ -446,9 +446,9 @@ int main(int argc, char** argv)
   Eigen::VectorXd error(3);
   Eigen::VectorXd error_dot(3);
   Eigen::VectorXd error_integral(3);
-  Eigen::MatrixXd Kp(3,3); Kp = 3 * Eigen::Matrix3d::Identity();
-  Eigen::MatrixXd Ki(3,3); Ki = 0.04 * Eigen::Matrix3d::Identity();
-  Eigen::MatrixXd Kd(3,3); Kd = 1 * Eigen::Matrix3d::Identity();
+  Eigen::MatrixXd Kp(3,3); Kp = 5 * Eigen::Matrix3d::Identity();
+  Eigen::MatrixXd Ki(3,3); Ki = 0.1 * Eigen::Matrix3d::Identity();
+  Eigen::MatrixXd Kd(3,3); Kd = 0.4 * Eigen::Matrix3d::Identity();
 
 
   auto start = std::chrono::steady_clock::now();
@@ -774,6 +774,9 @@ int main(int argc, char** argv)
           // std::cout << __FILE__ << ", " <<__LINE__ << std::endl;
           if (((int)state_run_time.count() * 1000) % 1000 == 0)
             std::cout << state_run_time.count() << " " << torques.transpose() << std::endl;
+          
+          angles(0) = NAN;
+          vels(0) = NAN;
           hexapod->setCommand(4, &angles, &vels, &torques);
           hexapod->sendCommand();
           break;
