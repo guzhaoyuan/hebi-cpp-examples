@@ -562,7 +562,11 @@ Hexapod::Hexapod(std::shared_ptr<Group> group,
   last_fbk = std::chrono::steady_clock::now();
   curr_fbk = std::chrono::steady_clock::now();
   // init fbk structures
-  fbk_legs.resize(num_legs_);
+  for (int i = 0; i< num_legs_; i++)
+  {
+    fbk_legs.push_back(daisyFbkLeg());
+    fbk_imus.push_back(daisyIMU());
+  }
 
   // Start a background feedback handler
   if (group_)
@@ -579,7 +583,7 @@ Hexapod::Hexapod(std::shared_ptr<Group> group,
       curr_fbk = std::chrono::steady_clock::now();
       fbk_dt = curr_fbk - last_fbk;
       last_fbk = curr_fbk;
-      // std::cout << "Time since last feedback: " << fbk_dt.count() << std::endl;
+      std::cout << "Time since last feedback: " << fbk_dt.count() << std::endl;
 
       assert(fbk.size() == Leg::getNumJoints() * real_legs_.size());
 
@@ -606,10 +610,21 @@ Hexapod::Hexapod(std::shared_ptr<Group> group,
         
         
         hebi::Vector3f tmp = fbk[i * num_leg_joints].imu().accelerometer().get();
-        fbk_imus[i].acc = Eigen::Vector3d(tmp.getX(), tmp.getY(), tmp.getZ());
+        fbk_imus[i].acc_s = Eigen::Vector3d(tmp.getX(), tmp.getY(), tmp.getZ());
         tmp = fbk[i * num_leg_joints].imu().gyro().get();
         fbk_imus[i].gyro = Eigen::Vector3d(tmp.getX(), tmp.getY(), tmp.getZ());
       }
+      // print acc in body frame       
+      for (int i = 0; i< num_legs_; i++)
+      {
+        auto base_frame = legs_[i] -> getKinematics().getBaseFrame();
+        Matrix3d rotation_bs = base_frame.topLeftCorner<3,3>();
+        Vector3d distance_bs = base_frame.topRightCorner<3,1>();
+        Vector3d w_b = rotation_bs * fbk_imus[i].gyro;
+        fbk_imus[i].acc_b = rotation_bs * fbk_imus[i].acc_s - w_b.cross(w_b.cross(distance_bs));
+        std::cout << fbk_imus[i].acc_b(0) << "\t" << fbk_imus[i].acc_b(1) << "\t" << fbk_imus[i].acc_b(2) << std::endl; 
+      }
+
 
       // this real or not real legs are pretty annoying 
       int num_legs_used = std::max((int)real_legs_.size(), 1);

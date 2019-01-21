@@ -125,14 +125,14 @@ add_custom_command(TARGET hexapod_control POST_BUILD
 #target_link_libraries(parameter_gui hebi hebic++ m pthread)
 
 # 2D Parameter setting GUI
-add_executable(parameter_gui_2d ${PARAMETER_GUI_2D_SOURCES} $<TARGET_OBJECTS:hexapod_core>)
-qt5_use_modules(parameter_gui_2d Core Gui Widgets)
-target_link_libraries(parameter_gui_2d hebi hebic++ m pthread ${RBDL_LIBRARY})
+#add_executable(parameter_gui_2d ${PARAMETER_GUI_2D_SOURCES} $<TARGET_OBJECTS:hexapod_core>)
+#qt5_use_modules(parameter_gui_2d Core Gui Widgets)
+#target_link_libraries(parameter_gui_2d hebi hebic++ m pthread ${RBDL_LIBRARY})
 
-add_executable(input_test ${INPUT_TEST_SOURCES})
-target_link_libraries( input_test hebi hebic++ m pthread ${RBDL_LIBRARY})
+#add_executable(input_test ${INPUT_TEST_SOURCES})
+#target_link_libraries( input_test hebi hebic++ m pthread ${RBDL_LIBRARY})
 
 # Add ultra-conservative warnings.
-if ( CMAKE_COMPILER_IS_GNUCC )
-  set_property( TARGET input_test APPEND_STRING PROPERTY COMPILE_FLAGS " -Wall -Wno-int-in-bool-context " )
-endif ( CMAKE_COMPILER_IS_GNUCC )
+#if ( CMAKE_COMPILER_IS_GNUCC )
+#  set_property( TARGET input_test APPEND_STRING PROPERTY COMPILE_FLAGS " -Wall -Wno-int-in-bool-context " )
+#endif ( CMAKE_COMPILER_IS_GNUCC )
