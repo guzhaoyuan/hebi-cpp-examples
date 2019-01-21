@@ -12,6 +12,7 @@
 
 #include "robot/hexapod.hpp"
 #include "input/input_manager_mobile_io.hpp"
+#include "util/trajectory.hpp"
 #include <atomic>
 #include <iostream>
 #include <unistd.h>
@@ -29,6 +30,9 @@ enum ctrl_state_type {
 
   TITAN6_TRIPOD_GAIT,
   TITAN6_WAVE_GAIT,
+
+  LEG_DYN_CTRL_TEST_PLAN,
+  LEG_DYN_CTRL_TEST_RUN,
 
   CTRL_STATES_COUNT
 };
@@ -413,7 +417,8 @@ int main(int argc, char** argv)
   rotation_velocity_cmd.setZero();
 
   // state transition related 
-  ctrl_state_type curr_ctrl_state = TITAN6_CTRL_STAND_UP1;
+  // ctrl_state_type curr_ctrl_state = TITAN6_CTRL_STAND_UP1;
+  ctrl_state_type curr_ctrl_state = LEG_DYN_CTRL_TEST_PLAN;
   tripod_gait_state curr_gait_state = STANCE;
   bool first_time_enter = true;
   // state transition parameters
@@ -430,6 +435,21 @@ int main(int argc, char** argv)
   Eigen::VectorXd torques(Leg::getNumJoints());
   Eigen::MatrixXd foot_forces(3,6); // 3 (xyz) by num legs
   foot_forces.setZero();
+  // used in leg test 
+  Eigen::VectorXd theta_start(3);
+  Eigen::VectorXd theta_end(3);
+  double total_time = 1;
+  int N = 1000;
+  Eigen::MatrixXd thetamat(Leg::getNumJoints(),N);
+  Eigen::MatrixXd dthetamat(Leg::getNumJoints(),N);
+  Eigen::MatrixXd ddthetamat(Leg::getNumJoints(),N);
+  Eigen::VectorXd error(3);
+  Eigen::VectorXd error_dot(3);
+  Eigen::VectorXd error_integral(3);
+  Eigen::MatrixXd Kp(3,3); Kp = 3 * Eigen::Matrix3d::Identity();
+  Eigen::MatrixXd Ki(3,3); Ki = 0.04 * Eigen::Matrix3d::Identity();
+  Eigen::MatrixXd Kd(3,3); Kd = 1 * Eigen::Matrix3d::Identity();
+
 
   auto start = std::chrono::steady_clock::now();
   long interval_ms = period;
@@ -678,13 +698,87 @@ int main(int argc, char** argv)
             Eigen::Vector3d foot_force = foot_forces.block<3,1>(0,i);
             Eigen::Vector3d gravity_vec = hexapod->getGravityDirection() * 9.8;
             torques = hexapod->getLeg(i)->computeTorques(jacobian_com, jacobian_ee, angles, vels, gravity_vec, /*dynamic_comp_torque,*/ foot_force); // TODO:
-        
+
             hexapod->setCommand(i, &angles, &vels, &torques);
           }
           hexapod->sendCommand();
           break;
         }
         
+        case LEG_DYN_CTRL_TEST_PLAN:
+        {
+          mode->setText("Leg Test Plan");
+          theta_start  = hexapod->getLegAng(4);
+          theta_end << 0, -M_PI/6, -M_PI/7;
+          // std::cout << __FILE__ << ", " <<__LINE__ << std::endl;
+          thetamat = JointTrajectory(theta_start, theta_end, total_time, N, 5);
+          double dt = total_time / (N - 1);
+          for (int i = 0; i < N-1; i++)
+          {
+            dthetamat.col(i+1) = (thetamat.col(i+1) - thetamat.col(i)) / dt;
+            ddthetamat.col(i+1) = (dthetamat.col(i+1) - dthetamat.col(i)) / dt;
+          }  
+
+          curr_ctrl_state = LEG_DYN_CTRL_TEST_RUN;
+          state_enter_time = std::chrono::steady_clock::now();
+          state_curr_time = std::chrono::steady_clock::now();
+
+          break;
+        }
+
+        case LEG_DYN_CTRL_TEST_RUN:
+        {
+          mode->setText("Leg Test Run");
+          std::chrono::duration<double> state_dt;
+          state_dt = std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::steady_clock::now() - state_curr_time);
+          state_curr_time = std::chrono::steady_clock::now();
+          state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
+
+          std::cout << "dt " << state_dt.count() << std::endl;
+          // test leg 5 and 6
+          double coeff = state_run_time.count()/total_time;
+          if (coeff >= 1.0)
+            coeff = 1.0;
+          int idx = (int) N*coeff;
+          if (idx >= N-1)
+            idx = N-1;
+          angles = thetamat.col(idx);
+          hebi::Leg* curr_leg = hexapod->getLeg(4);
+          // // For rendering:
+          if (hexapod_display)
+             hexapod_display->updateLeg(curr_leg, 4, angles);
+          // hexapod->setCommand(4, &angles, &vels, &torques);
+
+          // std::cout << __FILE__ << ", " <<__LINE__ << std::endl;
+          Eigen::VectorXd theta_d = thetamat.col(idx);
+          Eigen::VectorXd dtheta_d = dthetamat.col(idx);
+          Eigen::VectorXd ddtheta_d = ddthetamat.col(idx);
+          // std::cout << __FILE__ << ", " <<__LINE__ << std::endl;
+          Eigen::VectorXd theta_curr =  hexapod->getLegAng(4);
+          Eigen::VectorXd dtheta_curr =  hexapod->getLegVel(4);
+
+          // Eigen::VectorXd theta_curr(3); theta_curr<<0,0,0;
+          // Eigen::VectorXd dtheta_curr(3); dtheta_curr<<0,0,0;
+
+          // std::cout << __FILE__ << ", " <<__LINE__ << std::endl;
+          error = theta_d - theta_curr;
+          error_dot = dtheta_d - dtheta_curr;
+          error_integral +=  state_dt.count() * error;
+
+          ddtheta_d += Kp*error + Kd*error_dot + Ki*error_integral;
+
+          // std::cout << __FILE__ << ", " <<__LINE__ << std::endl;
+          
+          hexapod->getLeg(4) -> getInverseDynamics(theta_d, dtheta_d, ddtheta_d, torques);
+          
+          // std::cout << __FILE__ << ", " <<__LINE__ << std::endl;
+          if (((int)state_run_time.count() * 1000) % 1000 == 0)
+            std::cout << state_run_time.count() << " " << torques.transpose() << std::endl;
+          hexapod->setCommand(4, &angles, &vels, &torques);
+          hexapod->sendCommand();
+          break;
+        }
+
         case CTRL_STATES_COUNT:
         default:
         {

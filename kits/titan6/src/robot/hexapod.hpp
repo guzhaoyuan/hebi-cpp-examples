@@ -76,6 +76,9 @@ public:
   Leg* getLeg(int leg_index) { return legs_[leg_index].get(); }
 
   Eigen::VectorXd getLegFeedback(int leg_index);
+  Eigen::VectorXd getLegAng(int leg_index) {return fbk_legs[leg_index].joint_ang;}
+  Eigen::VectorXd getLegVel(int leg_index) {return fbk_legs[leg_index].joint_vel;}
+  Eigen::VectorXd getLegTorque(int leg_index) {return fbk_legs[leg_index].joint_tau;}
 
   void computeFootForces(double t, Eigen::MatrixXd& foot_forces);
 

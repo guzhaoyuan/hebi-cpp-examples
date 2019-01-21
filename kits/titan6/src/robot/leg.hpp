@@ -37,6 +37,9 @@ public:
   void computeIK(Eigen::Vector3d& angles, const Eigen::VectorXd& ee_com_pos);
   void computeFK(Eigen::Vector3d& ee_com_pos, Eigen::VectorXd angles);
 
+  // inverse dynamics 
+  void getInverseDynamics(Eigen::VectorXd& theta_d, Eigen::VectorXd& dtheta_d, Eigen::VectorXd& ddtheta_d, Eigen::VectorXd& tau);
+
   const double getLevelHomeStanceZ() const { return level_home_stance_xyz_(2); }
   const Eigen::Vector3d& getHomeStanceXYZ() const { return home_stance_xyz_; }
   const Eigen::Vector3d& getCmdStanceXYZ() const { return cmd_stance_xyz_; }

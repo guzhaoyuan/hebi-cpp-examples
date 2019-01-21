@@ -140,7 +140,7 @@ void Hexapod::setCommand(int leg_index, const VectorXd* angles, const VectorXd* 
 void Hexapod::sendCommand()
 {
   // if (group_)
-  //   group_->sendCommand(cmd_);
+    group_->sendCommand(cmd_);
 }
 
 bool Hexapod::setGains()

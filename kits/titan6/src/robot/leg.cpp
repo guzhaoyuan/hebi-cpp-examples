@@ -62,7 +62,7 @@ Leg::Leg(double angle_rad, double distance, const Eigen::VectorXd& current_angle
   if (configuration == LegConfiguration::Left)
   {
     // joint float (at the center of the base) -> base -> joint1 -> link1 -> joint2 -> link2 -> joint3 -> link3
-    joint_float = RigidBodyDynamics::Joint(RigidBodyDynamics::JointTypeFloatingBase);
+    joint_float = RigidBodyDynamics::Joint(RigidBodyDynamics::JointTypeFixed);
     RigidBodyDynamics::Math::Matrix3d I_base;
     I_base << 533112*10e-9,	 85290  *10e-9,	    673     *10e-9,
                85290*10e-9,	 959826 *10e-9,	    808     *10e-9,
@@ -108,7 +108,7 @@ Leg::Leg(double angle_rad, double distance, const Eigen::VectorXd& current_angle
   else
   {
     // joint float (at the center of the base) -> base -> joint1 -> link1 -> joint2 -> link2 -> joint3 -> link3
-    joint_float = RigidBodyDynamics::Joint(RigidBodyDynamics::JointTypeFloatingBase);
+    joint_float = RigidBodyDynamics::Joint(RigidBodyDynamics::JointTypeFixed);
     RigidBodyDynamics::Math::Matrix3d I_base;
     I_base << 533112*10e-9,	 85290  *10e-9,	    673     *10e-9,
                85290*10e-9,	 959826 *10e-9,	    808     *10e-9,
@@ -313,7 +313,13 @@ void Leg::computeFK(Eigen::Vector3d& ee_com_pos, Eigen::VectorXd angles)
   ee_com_pos(1) = sin(mount_point(3))*dX_leg + cos(mount_point(3))*dY_leg + mount_point(1);
   ee_com_pos(2) = dZ_leg + mount_point(2);
 }
-  
+
+void Leg::getInverseDynamics(Eigen::VectorXd& theta_d, Eigen::VectorXd& dtheta_d, Eigen::VectorXd& ddtheta_d, Eigen::VectorXd& tau)
+{
+  //std::cout << model->dof_count << std::endl;
+  RigidBodyDynamics::InverseDynamics(*model, theta_d, dtheta_d, ddtheta_d, tau);
+}
+
 void Leg::initStance(Eigen::VectorXd& current_angles)
 {
   computeFK(cmd_stance_xyz_, current_angles);
