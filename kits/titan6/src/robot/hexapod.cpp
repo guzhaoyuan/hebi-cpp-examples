@@ -384,7 +384,7 @@ void Hexapod::computeDynamicTorques(
   Eigen::VectorXd& tau,
   Eigen::VectorXd& f_ext)
 {
-  Eigen::MatrixXd Kp(3,3); Kp = 6 * Eigen::Matrix3d::Identity(); //TODO: put it as a parameter in hex_config
+  Eigen::MatrixXd Kp(3,3); Kp = 5 * Eigen::Matrix3d::Identity(); //TODO: put it as a parameter in hex_config
   Eigen::MatrixXd Kd(3,3); Kd = 0.2 * Eigen::Matrix3d::Identity();
 
   Eigen::VectorXd modified_ddtheta_d = ddtheta_d;
