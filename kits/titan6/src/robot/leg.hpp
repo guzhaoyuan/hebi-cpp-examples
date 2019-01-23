@@ -24,7 +24,7 @@ public:
   // kinematics object.
   bool computeJacobians(const Eigen::VectorXd& angles, Eigen::MatrixXd& jacobian_ee, robot_model::MatrixXdVector& jacobian_com);
   // TODO: return value?  What if IK fails?
-  bool computeState(double t, Eigen::VectorXd& angles, Eigen::VectorXd& vels, Eigen::MatrixXd& jacobian_ee, robot_model::MatrixXdVector& jacobian_com);
+  bool computeState(double t, Eigen::VectorXd& angles, Eigen::VectorXd& vels, Eigen::VectorXd& accels, Eigen::MatrixXd& jacobian_ee, robot_model::MatrixXdVector& jacobian_com);
 
   // TODO: combine with above computeState?
   // TODO: pass in torques as reference instead for consistency?
@@ -38,7 +38,8 @@ public:
   void computeFK(Eigen::Vector3d& ee_com_pos, Eigen::VectorXd angles);
 
   // inverse dynamics 
-  void getInverseDynamics(Eigen::VectorXd& theta_d, Eigen::VectorXd& dtheta_d, Eigen::VectorXd& ddtheta_d, Eigen::VectorXd& tau);
+  void getInverseDynamics(Eigen::VectorXd& theta_d, Eigen::VectorXd& dtheta_d, Eigen::VectorXd& ddtheta_d, Eigen::VectorXd& tau, Eigen::VectorXd& f_ext);
+  void setDynamicsGravity(Eigen::VectorXd& gravity_vec);
 
   const double getLevelHomeStanceZ() const { return level_home_stance_xyz_(2); }
   const Eigen::Vector3d& getHomeStanceXYZ() const { return home_stance_xyz_; }
@@ -84,8 +85,8 @@ private:
   Eigen::Vector3d stance_vel_xyz_;
   
   Eigen::Vector4d mount_point;
-  const double L1 = 0.2795;
-  const double L2 = 0.272;
+  const double L1 = 0.325;
+  const double L2 = 0.325;
   const double left_tran =  0.0425;
   const double left_d1Z = 0.07105;  // from base center to first joint, distance Z
 

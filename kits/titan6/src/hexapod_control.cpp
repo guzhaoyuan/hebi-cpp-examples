@@ -417,8 +417,8 @@ int main(int argc, char** argv)
   rotation_velocity_cmd.setZero();
 
   // state transition related 
-  // ctrl_state_type curr_ctrl_state = TITAN6_CTRL_STAND_UP1;
-  ctrl_state_type curr_ctrl_state = LEG_DYN_CTRL_TEST_PLAN;
+  ctrl_state_type curr_ctrl_state = TITAN6_CTRL_STAND_UP1;
+  // ctrl_state_type curr_ctrl_state = LEG_DYN_CTRL_TEST_PLAN;
   tripod_gait_state curr_gait_state = STANCE;
   bool first_time_enter = true;
   // state transition parameters
@@ -446,9 +446,9 @@ int main(int argc, char** argv)
   Eigen::VectorXd error(3);
   Eigen::VectorXd error_dot(3);
   Eigen::VectorXd error_integral(3);
-  Eigen::MatrixXd Kp(3,3); Kp = 5 * Eigen::Matrix3d::Identity();
-  Eigen::MatrixXd Ki(3,3); Ki = 0.1 * Eigen::Matrix3d::Identity();
-  Eigen::MatrixXd Kd(3,3); Kd = 0.4 * Eigen::Matrix3d::Identity();
+  Eigen::MatrixXd Kp(3,3); Kp = 6 * Eigen::Matrix3d::Identity();
+  Eigen::MatrixXd Ki(3,3); Ki = 0.01 * Eigen::Matrix3d::Identity();
+  Eigen::MatrixXd Kd(3,3); Kd = 0.2 * Eigen::Matrix3d::Identity();
 
 
   auto start = std::chrono::steady_clock::now();
@@ -458,6 +458,7 @@ int main(int argc, char** argv)
   control_execute.store(true, std::memory_order_release);
   std::thread control_thread([&]()
   {
+
     auto prev = std::chrono::steady_clock::now();
     // Get dt (in seconds)
     std::chrono::duration<double> dt = std::chrono::seconds(0);
@@ -544,6 +545,7 @@ int main(int argc, char** argv)
           state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
 
           for (int i = 0; i < 6; ++i)
+
           {
             Eigen::VectorXd leg_start = hexapod->getLegFeedback(i);
 
@@ -602,6 +604,7 @@ int main(int argc, char** argv)
           state_enter_time = std::chrono::steady_clock::now();
           
           break;
+
         }
 
         case TITAN6_CTRL_STAND_UP2:
@@ -610,7 +613,9 @@ int main(int argc, char** argv)
           state_curr_time = std::chrono::steady_clock::now();
           state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
           mode->setText("Startup Exec");
-                
+          
+          Eigen::VectorXd gravity_vec = hexapod->getGravityDirection() * 1;
+          hexapod->computeFootForces(state_run_time.count(), foot_forces);
           // Follow t_l:
           for (int i = 0; i < 6; ++i)
           {
@@ -619,7 +624,7 @@ int main(int argc, char** argv)
             startup_trajectories[i]->getState(elapsed.count(), &angles, &v, &a);
             vels = v;
 
-            Eigen::Vector3d foot_force = foot_forces.block<3,1>(0,i);
+            //Eigen::Vector3d foot_force = foot_forces.block<3,1>(0,i);
             hebi::Leg* curr_leg = hexapod->getLeg(i);
 
             // Get the Jacobian
@@ -627,18 +632,18 @@ int main(int argc, char** argv)
             robot_model::MatrixXdVector jacobian_com;
             curr_leg->computeJacobians(angles, jacobian_ee, jacobian_com);
 
-            Eigen::Vector3d gravity_vec = hexapod->getGravityDirection() * 9.8;
-            torques = curr_leg->computeTorques(jacobian_com, jacobian_ee, angles, vels, gravity_vec, /* dynamic_comp_torque,*/ foot_force); // TODO: add dynamic compensation
+            // Eigen::Vector3d gravity_vec = hexapod->getGravityDirection() * 9.8;
+            // torques = curr_leg->computeTorques(jacobian_com, jacobian_ee, angles, vels, gravity_vec, /* dynamic_comp_torque,*/ foot_force); // TODO: add dynamic compensation
             // For rendering:
             if (hexapod_display)
               hexapod_display->updateLeg(curr_leg, i, angles);
             // TODO: add actual foot torque for startup?
+            Eigen::VectorXd foot_force(3); foot_force << 0,0,0;
+            hexapod -> computeDynamicTorques(i, angles, v, a, gravity_vec, torques, foot_force);
+            angles(0) = NAN; vels(0) = NAN;
             // TODO: add vel, torque; test each one!
             hexapod->setCommand(i, &angles, &vels, &torques);
 
-            // For rendering:
-            if (hexapod_display)
-              hexapod_display->updateLeg(curr_leg, i, angles);
           }
           hexapod->sendCommand();
 
@@ -684,21 +689,30 @@ int main(int argc, char** argv)
           Eigen::MatrixXd jacobian_ee;
           robot_model::MatrixXdVector jacobian_com;
           Eigen::VectorXd angles_plus_dt;
+          Eigen::VectorXd gravity_vec = hexapod->getGravityDirection() * 1;
+          // std::cout << hexapod->getGravityDirection() * 9.8 << std::endl;
           for (int i = 0; i < 6; ++i)
           {
+            Eigen::VectorXd a(3);
             hebi::Leg* curr_leg = hexapod->getLeg(i);
             // TODO: add vels and torques
-            curr_leg->computeState(state_run_time.count(), angles, vels, jacobian_ee, jacobian_com);
+            curr_leg->computeState(state_run_time.count(), angles, vels, a, jacobian_ee, jacobian_com);
 
             // For rendering:
             if (hexapod_display)
               hexapod_display->updateLeg(curr_leg, i, angles);
             
             // Get torques
-            Eigen::Vector3d foot_force = foot_forces.block<3,1>(0,i);
-            Eigen::Vector3d gravity_vec = hexapod->getGravityDirection() * 9.8;
-            torques = hexapod->getLeg(i)->computeTorques(jacobian_com, jacobian_ee, angles, vels, gravity_vec, /*dynamic_comp_torque,*/ foot_force); // TODO:
+            // Eigen::VectorXd foot_force = foot_forces.block<3,1>(0,i);
 
+            Eigen::VectorXd foot_force(3); foot_force << 0,0,0;
+            // torques = hexapod->getLeg(i)->computeTorques(jacobian_com, jacobian_ee, angles, vels, gravity_vec, /*dynamic_comp_torque,*/ foot_force); // TODO:
+
+            // hexapod->setCommand(i, &angles, &vels, &torques);
+
+            hexapod -> computeDynamicTorques(i, angles, vels, a, gravity_vec, torques, foot_force);
+            angles(0) = NAN; vels(0) = NAN;
+            // TODO: add vel, torque; test each one!
             hexapod->setCommand(i, &angles, &vels, &torques);
           }
           hexapod->sendCommand();
@@ -709,7 +723,7 @@ int main(int argc, char** argv)
         {
           mode->setText("Leg Test Plan");
           theta_start  = hexapod->getLegAng(4);
-          theta_end << 0, -M_PI/6, -M_PI/7;
+          theta_end << 0, 0, -M_PI/2;
           // std::cout << __FILE__ << ", " <<__LINE__ << std::endl;
           thetamat = JointTrajectory(theta_start, theta_end, total_time, N, 5);
           double dt = total_time / (N - 1);
@@ -743,10 +757,22 @@ int main(int argc, char** argv)
           if (idx >= N-1)
             idx = N-1;
           angles = thetamat.col(idx);
-          hebi::Leg* curr_leg = hexapod->getLeg(4);
+
+          angles(1) = -angles(1);
+          angles(2) = -angles(2);
+          vels(0) = NAN;
+          torques(0) = NAN;
+          hexapod->setCommand(5, &angles, &vels, &torques);
+          angles(1) = -angles(1);
+          angles(2) = -angles(2);
+          hebi::Leg* curr_leg1 = hexapod->getLeg(4);
+          hebi::Leg* curr_leg2 = hexapod->getLeg(5);
           // // For rendering:
           if (hexapod_display)
-             hexapod_display->updateLeg(curr_leg, 4, angles);
+          {
+             hexapod_display->updateLeg(curr_leg1, 4, angles);
+             hexapod_display->updateLeg(curr_leg2, 5, angles);
+          }
           // hexapod->setCommand(4, &angles, &vels, &torques);
 
           // std::cout << __FILE__ << ", " <<__LINE__ << std::endl;
@@ -765,20 +791,30 @@ int main(int argc, char** argv)
           error_dot = dtheta_d - dtheta_curr;
           error_integral +=  state_dt.count() * error;
 
+          // std::cout << "error  " << theta_d << theta_curr << error << std::endl;
+          // std::cout << "error_dot  " << error_dot << std::endl;
+          
           ddtheta_d += Kp*error + Kd*error_dot + Ki*error_integral;
 
           // std::cout << __FILE__ << ", " <<__LINE__ << std::endl;
           
-          hexapod->getLeg(4) -> getInverseDynamics(theta_d, dtheta_d, ddtheta_d, torques);
+          Eigen::VectorXd gravity_vec = hexapod->getGravityDirection() * 1;  // not 9.8! caused big problem
+          hexapod->getLeg(4) -> setDynamicsGravity(gravity_vec);
+          Eigen::VectorXd foot_force(3); foot_force << 0,0,0;
+          hexapod->getLeg(4) -> getInverseDynamics(theta_d, dtheta_d, ddtheta_d, torques, foot_force);
           
           // std::cout << __FILE__ << ", " <<__LINE__ << std::endl;
           if (((int)state_run_time.count() * 1000) % 1000 == 0)
             std::cout << state_run_time.count() << " " << torques.transpose() << std::endl;
           
-          angles(0) = NAN;
+          angles(0) = NAN; // no angle control just use 
           vels(0) = NAN;
           hexapod->setCommand(4, &angles, &vels, &torques);
           hexapod->sendCommand();
+
+          angles(0) = NAN;
+          vels(0) = NAN;
+          torques(0) = NAN;
           break;
         }
 

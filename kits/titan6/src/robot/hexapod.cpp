@@ -377,6 +377,22 @@ void Hexapod::computeFootForces(double t, Eigen::MatrixXd& foot_forces)
     foot_forces.block<3,1>(0,i) = factors(i) * weight_ * grav;
 }
 
+void Hexapod::computeDynamicTorques(
+  int leg_index, 
+  Eigen::VectorXd& theta_d, Eigen::VectorXd& dtheta_d, Eigen::VectorXd& ddtheta_d, 
+  Eigen::VectorXd& gravity_vec, 
+  Eigen::VectorXd& tau,
+  Eigen::VectorXd& f_ext)
+{
+  Eigen::MatrixXd Kp(3,3); Kp = 6 * Eigen::Matrix3d::Identity(); //TODO: put it as a parameter in hex_config
+  Eigen::MatrixXd Kd(3,3); Kd = 0.2 * Eigen::Matrix3d::Identity();
+
+  Eigen::VectorXd modified_ddtheta_d = ddtheta_d;
+  modified_ddtheta_d += Kp*(theta_d - fbk_legs[leg_index].joint_ang) + Kd*(dtheta_d - fbk_legs[leg_index].joint_vel);
+  getLeg(leg_index) -> setDynamicsGravity(gravity_vec);
+  getLeg(leg_index) -> getInverseDynamics(theta_d, dtheta_d, modified_ddtheta_d, tau, f_ext);
+}
+
 // TODO: make this a class function and remove parameters? Make it better!
 // Because we may be using a "partial" hexapod (e.g., some physical module-backed
 // legs and some "dummy" legs to allow testing code on a few legs at a time),
@@ -583,7 +599,7 @@ Hexapod::Hexapod(std::shared_ptr<Group> group,
       curr_fbk = std::chrono::steady_clock::now();
       fbk_dt = curr_fbk - last_fbk;
       last_fbk = curr_fbk;
-      std::cout << "Time since last feedback: " << fbk_dt.count() << std::endl;
+      // std::cout << "Time since last feedback: " << fbk_dt.count() << std::endl;
 
       assert(fbk.size() == Leg::getNumJoints() * real_legs_.size());
 
@@ -622,11 +638,11 @@ Hexapod::Hexapod(std::shared_ptr<Group> group,
         Vector3d distance_bs = base_frame.topRightCorner<3,1>();
 
         fbk_imus[i].gyro_b = rotation_bs*fbk_imus[i].gyro_s;
-        std::cout << " gyro: " << fbk_imus[i].gyro_b(0) << "\t" << fbk_imus[i].gyro_b(1) << "\t" << fbk_imus[i].gyro_b(2) << std::endl; 
+        // std::cout << " gyro: " << fbk_imus[i].gyro_b(0) << "\t" << fbk_imus[i].gyro_b(1) << "\t" << fbk_imus[i].gyro_b(2) << std::endl; 
 
         // rigid body dynamics, check wiki
         fbk_imus[i].acc_b = rotation_bs * fbk_imus[i].acc_s - fbk_imus[i].gyro_b.cross(fbk_imus[i].gyro_b.cross(distance_bs));
-        std::cout << " acce: "  << fbk_imus[i].acc_b(0) << "\t" << fbk_imus[i].acc_b(1) << "\t" << fbk_imus[i].acc_b(2) << std::endl; 
+        // std::cout << " acce: "  << fbk_imus[i].acc_b(0) << "\t" << fbk_imus[i].acc_b(1) << "\t" << fbk_imus[i].acc_b(2) << std::endl; 
       }
 
 

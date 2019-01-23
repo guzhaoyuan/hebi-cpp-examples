@@ -81,6 +81,7 @@ public:
   Eigen::VectorXd getLegTorque(int leg_index) {return fbk_legs[leg_index].joint_tau;}
 
   void computeFootForces(double t, Eigen::MatrixXd& foot_forces);
+  void computeDynamicTorques(int leg_index, Eigen::VectorXd& theta_d, Eigen::VectorXd& dtheta_d, Eigen::VectorXd& ddtheta_d, Eigen::VectorXd& gravity_vec, Eigen::VectorXd& tau, Eigen::VectorXd& f_ext);
 
   std::chrono::time_point<std::chrono::steady_clock> getLastFeedbackTime();
 
@@ -95,6 +96,7 @@ public:
   void setLegColor(int leg_index, uint8_t r, uint8_t g, uint8_t b);
 
   Eigen::Vector3d getGravityDirection();
+
 
   // added 2019-01-20 state estimate experiment! very important 
   void initStateEstimation();
