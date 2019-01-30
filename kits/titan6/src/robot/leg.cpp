@@ -131,7 +131,7 @@ Leg::Leg(double angle_rad, double distance, const Eigen::VectorXd& current_angle
                                   
     
 
-    joint_2 = RigidBodyDynamics::Joint(RigidBodyDynamics::JointTypeRevolute, RigidBodyDynamics::Math::Vector3d(0,1,0));
+    joint_2 = RigidBodyDynamics::Joint(RigidBodyDynamics::JointTypeRevolute, RigidBodyDynamics::Math::Vector3d(0,-1,0));
     RigidBodyDynamics::Math::Matrix3d I2;
     I2 << 503535*10e-9,	809250*10e-9,	    13544*10e-9,
 	       809250*10e-9,	10025568*10e-9,	    10176*10e-9,
@@ -141,7 +141,7 @@ Leg::Leg(double angle_rad, double distance, const Eigen::VectorXd& current_angle
                       I2);
     body_2_id = model -> AddBody(body_1_id, RigidBodyDynamics::Math::Xtrans(Vector3d(0,-8.55*10e-3,55*10e-3)), joint_2, body_2);
      
-    joint_3 = RigidBodyDynamics::Joint(RigidBodyDynamics::JointTypeRevolute, RigidBodyDynamics::Math::Vector3d(0,-1,0));
+    joint_3 = RigidBodyDynamics::Joint(RigidBodyDynamics::JointTypeRevolute, RigidBodyDynamics::Math::Vector3d(0,1,0));
     RigidBodyDynamics::Math::Matrix3d I3;
     I3 <<      75404*10e-9,	     -3.31*10e-9,	    -80356*10e-9,
 	            -3.31*10e-9,	    3483112*10e-9,	    0.97*10e-9,
@@ -149,7 +149,7 @@ Leg::Leg(double angle_rad, double distance, const Eigen::VectorXd& current_angle
     body_3 = RigidBodyDynamics::Body( 0.23198, 
                       RigidBodyDynamics::Math::Vector3d(123.37*10e-3, 0*10e-3, -17.23*10e-3), 
                       I3);
-    body_3_id = model -> AddBody(body_2_id, RigidBodyDynamics::Math::Xtrans(Vector3d(325.5*10e-3,31.05*10e-3,0*10e-3)), joint_3, body_3);
+    body_3_id = model -> AddBody(body_2_id, RigidBodyDynamics::Math::Xtrans(Vector3d(325.5*10e-3, 31.05*10e-3, 0*10e-3)), joint_3, body_3);
   }
 
 }
@@ -316,7 +316,23 @@ void Leg::computeFK(Eigen::Vector3d& ee_com_pos, Eigen::VectorXd angles)
 void Leg::getInverseDynamics(Eigen::VectorXd& theta_d, Eigen::VectorXd& dtheta_d, Eigen::VectorXd& ddtheta_d, Eigen::VectorXd& tau, Eigen::VectorXd& f_ext)
 {
   //std::cout << model->dof_count << std::endl;
-  RigidBodyDynamics::InverseDynamics(*model, theta_d, dtheta_d, ddtheta_d, tau);
+  RigidBodyDynamics::Math::SpatialVector f_ext_zero(0,0,0,0,0,0);
+  RigidBodyDynamics::Math::SpatialVector f_ext_vec(f_ext);
+  std::vector<RigidBodyDynamics::Math::SpatialVector> f_ext_vec_list;
+  // base does not have force when 
+  if (getMode() == Leg::Mode::Flight)
+  {
+    f_ext_vec_list.push_back(f_ext_zero);
+  }
+  else
+  {
+    f_ext_vec_list.push_back(f_ext_vec);
+  }
+  
+  f_ext_vec_list.push_back(f_ext_zero);
+  f_ext_vec_list.push_back(f_ext_zero);
+  f_ext_vec_list.push_back(-f_ext_vec);
+  RigidBodyDynamics::InverseDynamics(*model, theta_d, dtheta_d, ddtheta_d, tau, &f_ext_vec_list);
 }
 
 void Leg::setDynamicsGravity(Eigen::VectorXd& gravity_vec)

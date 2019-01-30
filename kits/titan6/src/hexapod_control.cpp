@@ -580,7 +580,7 @@ int main(int argc, char** argv)
           state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
           mode->setText("Startup Exec");
           
-          Eigen::VectorXd gravity_vec = hexapod->getGravityDirection() * 1;
+          Eigen::VectorXd gravity_vec = hexapod->getGravityDirection() * 9.8;
           // Follow t_l:
           for (int i = 0; i < 6; ++i)
           {
@@ -593,7 +593,7 @@ int main(int argc, char** argv)
               hexapod_display->updateLeg(curr_leg, i, angles);
             
             // TODO: add actual foot torque for startup?
-            Eigen::VectorXd foot_force(3); foot_force << 0,0,0;
+            Eigen::VectorXd foot_force(6); foot_force << 0,0,0,0,0,0;
             hexapod -> computeDynamicTorques(i, angles, vels, accels, gravity_vec, torques, foot_force);
             angles(0) = NAN; vels(0) = NAN;
             hexapod->setCommand(i, &angles, &vels, &torques);
@@ -622,7 +622,7 @@ int main(int argc, char** argv)
           state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
 
           // Calculate how the weight is distributed
-          hexapod->computeFootForces(state_run_time.count(), foot_forces);
+          //hexapod->computeFootForces(state_run_time.count(), foot_forces);
           hexapod->updateStance(
             translation_velocity_cmd.cast<double>(),
             rotation_velocity_cmd.cast<double>(),
@@ -636,7 +636,7 @@ int main(int argc, char** argv)
 
           Eigen::MatrixXd jacobian_ee;
           robot_model::MatrixXdVector jacobian_com;
-          Eigen::VectorXd gravity_vec = hexapod->getGravityDirection() * 1;
+          Eigen::VectorXd gravity_vec = hexapod->getGravityDirection() * 9.8;
           // std::cout << hexapod->getGravityDirection() * 9.8 << std::endl;
           for (int i = 0; i < 6; ++i)
           {
@@ -648,11 +648,29 @@ int main(int argc, char** argv)
             if (hexapod_display)
               hexapod_display->updateLeg(curr_leg, i, angles);
 
-            // Eigen::VectorXd foot_force(3); foot_force << 0,0,0;
-            Eigen::VectorXd foot_force = foot_forces.block<3,1>(0,i);
-            hexapod -> computeDynamicTorques(i, angles, vels, accels, gravity_vec, torques, foot_force);
+            Eigen::VectorXd body_force(6); body_force << 0,0,0,0,0,0;
+            std::cout << hexapod -> isStepping() << std::endl;
+            // if (hexapod -> isStepping())
+            // {
+            //   if (curr_leg->getMode() == Leg::Mode::Flight)
+            //   {
+            //     body_force(5) = 0;
+            //   }    
+            //   else
+            //   {
+            //     body_force(5) = -25*9.8/3.0;
+            //   }
+                
+            // }
+            // else
+            // {
+            //   body_force(5) = -25*9.8/6.0;
+            // }
             
-            angles(0) = NAN; vels(0) = NAN;
+            hexapod -> computeDynamicTorques(i, angles, vels, accels, gravity_vec, torques, body_force);
+            
+            angles(0) = NAN; 
+            vels(0) = NAN;
             hexapod->setCommand(i, &angles, &vels, &torques);
           }
           hexapod->sendCommand();

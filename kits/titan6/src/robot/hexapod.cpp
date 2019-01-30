@@ -384,13 +384,18 @@ void Hexapod::computeDynamicTorques(
   Eigen::VectorXd& tau,
   Eigen::VectorXd& f_ext)
 {
-  Eigen::MatrixXd Kp(3,3); Kp = 5 * Eigen::Matrix3d::Identity(); //TODO: put it as a parameter in hex_config
-  Eigen::MatrixXd Kd(3,3); Kd = 0.2 * Eigen::Matrix3d::Identity();
+  Eigen::MatrixXd Kp(3,3); Kp = Eigen::Matrix3d::Identity(); //TODO: put it as a parameter in hex_config
+  Eigen::MatrixXd Kd(3,3); Kd = Eigen::Matrix3d::Identity();
+  Kp(0,0) = 4; Kd(0,0) = 0.3;
+  Kp(1,1) = 8; Kd(1,1) = 0.2;
+  Kp(2,2) = 1; Kd(2,2) = 0.1;
 
   Eigen::VectorXd modified_ddtheta_d = ddtheta_d;
   modified_ddtheta_d += Kp*(theta_d - fbk_legs[leg_index].joint_ang) + Kd*(dtheta_d - fbk_legs[leg_index].joint_vel);
+  Eigen::VectorXd curr_theta = fbk_legs[leg_index].joint_ang;
+  Eigen::VectorXd curr_dtheta = fbk_legs[leg_index].joint_vel;
   getLeg(leg_index) -> setDynamicsGravity(gravity_vec);
-  getLeg(leg_index) -> getInverseDynamics(theta_d, dtheta_d, modified_ddtheta_d, tau, f_ext);
+  getLeg(leg_index) -> getInverseDynamics(curr_theta, curr_dtheta, modified_ddtheta_d, tau, f_ext);
 }
 
 // TODO: make this a class function and remove parameters? Make it better!
