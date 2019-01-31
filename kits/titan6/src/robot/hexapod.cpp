@@ -7,6 +7,7 @@
 
 #include "hexapod.hpp"
 
+
 #include <chrono>
 #include <thread>
 #include <ctime>
@@ -580,6 +581,9 @@ Hexapod::Hexapod(std::shared_ptr<Group> group,
   // Default to straight down w/ a level chassis
   gravity_direction_ = -Eigen::Vector3d::UnitZ();
 
+  // init estimator
+  estimator = new Estimator();
+  
   last_fbk = std::chrono::steady_clock::now();
   curr_fbk = std::chrono::steady_clock::now();
   // init fbk structures
@@ -604,7 +608,7 @@ Hexapod::Hexapod(std::shared_ptr<Group> group,
       curr_fbk = std::chrono::steady_clock::now();
       fbk_dt = curr_fbk - last_fbk;
       last_fbk = curr_fbk;
-      // std::cout << "Time since last feedback: " << fbk_dt.count() << std::endl;
+      std::cout << "Time since last feedback: " << fbk_dt.count() << std::endl;
 
       assert(fbk.size() == Leg::getNumJoints() * real_legs_.size());
 
@@ -643,12 +647,17 @@ Hexapod::Hexapod(std::shared_ptr<Group> group,
         Vector3d distance_bs = base_frame.topRightCorner<3,1>();
 
         fbk_imus[i].gyro_b = rotation_bs*fbk_imus[i].gyro_s;
-        // std::cout << " gyro: " << fbk_imus[i].gyro_b(0) << "\t" << fbk_imus[i].gyro_b(1) << "\t" << fbk_imus[i].gyro_b(2) << std::endl; 
-
+      
         // rigid body dynamics, check wiki
         fbk_imus[i].acc_b = rotation_bs * fbk_imus[i].acc_s - fbk_imus[i].gyro_b.cross(fbk_imus[i].gyro_b.cross(distance_bs));
-        // std::cout << " acce: "  << fbk_imus[i].acc_b(0) << "\t" << fbk_imus[i].acc_b(1) << "\t" << fbk_imus[i].acc_b(2) << std::endl; 
+        std::cout << " acce: "  << fbk_imus[i].acc_b(0) << "\t" << fbk_imus[i].acc_b(1) << "\t" << fbk_imus[i].acc_b(2) << std::endl; 
+      }   
+
+      for (int i = 0; i< num_legs_; i++)
+      {
+        std::cout << " gyro: " << fbk_imus[i].gyro_b(0) << "\t" << fbk_imus[i].gyro_b(1) << "\t" << fbk_imus[i].gyro_b(2) << std::endl; 
       }
+
 
 
       // this real or not real legs are pretty annoying 

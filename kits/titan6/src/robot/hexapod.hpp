@@ -6,6 +6,8 @@
 #include "leg.hpp"
 #include "hexapod_parameters.hpp"
 #include "../estimation/daisy_fbk_struct.hpp"
+#include "../estimation/Estimator.hpp"
+
 #include <Eigen/Dense>
 #include <memory>
 #include <set>
@@ -153,6 +155,7 @@ private:
   // in estimation/daisy_fbk_struct.hpp
   std::vector<daisyFbkLeg> fbk_legs;
   std::vector<daisyIMU> fbk_imus;   // the base imu
+  Estimator* estimator;
 
   
   // Allow Eigen member variables:

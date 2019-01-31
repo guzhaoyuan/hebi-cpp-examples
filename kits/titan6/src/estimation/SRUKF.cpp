@@ -10,7 +10,7 @@
   *           
   ******************************************************************************  
   */ 
-#include "SRUKF.h"
+#include "SRUKF.hpp"
 
 SRUKF::SRUKF(int _n, int _m, 
              double _q, double  _r,

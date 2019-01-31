@@ -1,6 +1,6 @@
 /**
   ***************************************************************************************
-  * @file    SRUKF.h
+  * @file    SRUKF.hpp
   * @author  YANG Shuo
   * @version V1.1.0
   * @date    20-Jan-2019
@@ -10,8 +10,8 @@
   *          C++ library Eigen3  
   ***************************************************************************************
   */
-#ifndef _SRUKF_H
-#define _SRUKF_H
+#pragma once
+
 #include <iostream>
 #include <cmath>
 #include <eigen3/Eigen/Dense>
@@ -25,7 +25,7 @@ class SRUKF
 
         SRUKF(int _n, int _m, 
               double _q, double  _r,
-              void (*_f_func)(VectorXd&, const VectorXd&, const Vector3d a, const double dt), 
+              void (*_f_func)(VectorXd&, const VectorXd&, const Vector3d w, const double dt), 
               void (*_h_func)(VectorXd&, const VectorXd&), 
               double _w_m0 = 0.5, double _w_c0 = 0.5);
 
@@ -33,7 +33,7 @@ class SRUKF
         SRUKF(int _n, int _m, 
 			  double posStd_R, double ortStd_R, double imuStd_R,
 			  double posStd_Q, double ortStd_Q, double imuStd_Q,
-              void (*_f_func)(VectorXd&, const VectorXd&, const Vector3d a, const double dt), 
+              void (*_f_func)(VectorXd&, const VectorXd&, const Vector3d w, const double dt), 
               void (*_h_func)(VectorXd&, const VectorXd&), 
               double _w_m0 = 0.5, double _w_c0 = 0.5);
 
@@ -83,4 +83,4 @@ class SRUKF
         MatrixXd U;
 
 };
-#endif
+

@@ -649,7 +649,7 @@ int main(int argc, char** argv)
               hexapod_display->updateLeg(curr_leg, i, angles);
 
             Eigen::VectorXd body_force(6); body_force << 0,0,0,0,0,0;
-            std::cout << hexapod -> isStepping() << std::endl;
+            // std::cout << hexapod -> isStepping() << std::endl;
             // if (hexapod -> isStepping())
             // {
             //   if (curr_leg->getMode() == Leg::Mode::Flight)
