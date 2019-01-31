@@ -104,6 +104,8 @@ public:
   void initStateEstimation();
   void updateStateEstimation();
   void publishStateEstimation();
+  void startRecordBias();
+  void stopRecordBias();
 
 private:
 
@@ -156,6 +158,10 @@ private:
   std::vector<daisyFbkLeg> fbk_legs;
   std::vector<daisyIMU> fbk_imus;   // the base imu
   Estimator* estimator;
+
+  bool bias_record_start;
+  std::vector<Eigen::Vector3d> acc_bias_list;
+  std::vector<Eigen::Vector3d> gyro_bias_list;
 
   
   // Allow Eigen member variables:

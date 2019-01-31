@@ -28,6 +28,8 @@ enum ctrl_state_type {
   TITAN6_CTRL_STAND_UP1,
   TITAN6_CTRL_STAND_UP2,
 
+  TITAN6_CTRL_STAND_UP3,  // this state is used to record sensor bias and do initialization of estimation
+
   TITAN6_TRIPOD_GAIT,
   TITAN6_WAVE_GAIT,
 
@@ -402,7 +404,8 @@ int main(int argc, char** argv)
   // ctrl_state_type curr_ctrl_state = LEG_DYN_CTRL_TEST_PLAN;
   //tripod_gait_state curr_gait_state = STANCE;
   // state transition parameters
-  double startup_seconds = 3;
+  double startup_seconds = 5;
+  double bias_record_seconds = 3;
   // some time for state use
   auto state_enter_time = std::chrono::steady_clock::now(); 
   auto state_curr_time = std::chrono::steady_clock::now(); 
@@ -513,6 +516,8 @@ int main(int argc, char** argv)
           for (int i = 0; i < 6; ++i)
 
           {
+            // set blue
+            hexapod->setLegColor(i, 0, 0, 255);
             Eigen::VectorXd leg_start = hexapod->getLegFeedback(i);
 
             Eigen::Vector3d goal(3);
@@ -584,6 +589,7 @@ int main(int argc, char** argv)
           // Follow t_l:
           for (int i = 0; i < 6; ++i)
           {
+            hexapod->setLegColor(i, 255, 0, 0);
             startup_trajectories[i]->getState(state_run_time.count(), &angles, &vels, &accels);
             
             hebi::Leg* curr_leg = hexapod->getLeg(i);
@@ -603,21 +609,47 @@ int main(int argc, char** argv)
 
           if (state_run_time.count() >= startup_seconds)
           {
-            curr_ctrl_state = TITAN6_TRIPOD_GAIT;
+            curr_ctrl_state = TITAN6_CTRL_STAND_UP3;
             state_enter_time = std::chrono::steady_clock::now();
             
+            hexapod -> startRecordBias();
+          }
+          break;
+        }
+
+        case TITAN6_CTRL_STAND_UP3:
+        {
+          state_curr_time = std::chrono::steady_clock::now();
+          state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
+          mode->setText("Record bias");
+
+          // send previous command;
+          hexapod->sendCommand();
+          // set some different color
+          for (int i = 0; i < 6; ++i)
+          {
+            hexapod->setLegColor(i, 0, 255, 255);
+          }
+          
+
+          if (state_run_time.count() >= bias_record_seconds)
+          {
+            curr_ctrl_state = TITAN6_TRIPOD_GAIT;
+            state_enter_time = std::chrono::steady_clock::now();
+            hexapod -> stopRecordBias();
             hexapod -> initStance(state_run_time.count()); 
           }
           break;
         }
 
-        // TODO: add a state, do nothing, but let hexapod to record sensor bias
-
         case TITAN6_TRIPOD_GAIT:
         {
           // stays in this state most of the time
           mode->setText("Tripod Gait Mode");
-
+          for (int i = 0; i < 6; ++i)
+          {
+            hexapod->setLegColor(i, 0, 255, 0);
+          }
           state_curr_time = std::chrono::steady_clock::now();
           state_run_time = std::chrono::duration_cast<std::chrono::duration<double>>(state_curr_time - state_enter_time);
 

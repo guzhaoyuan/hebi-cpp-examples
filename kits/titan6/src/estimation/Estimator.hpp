@@ -20,12 +20,15 @@ namespace hebi {
 	{
 		public:
 			Estimator();
+			Estimator(int state_size_, int measure_size_);
 			~Estimator();
 
 			void initialize(VectorXd& b_g, VectorXd& b_a);
 			bool isInitialized(){return filter_initialized_;}
 
 			bool getState(VectorXd & estimate_state);
+
+			void update(const Vector3d& acc_b, const Vector3d& gyro_b, const double dt);
 
 		private:
 			SRUKF* ukf;
@@ -55,8 +58,6 @@ namespace hebi {
 
 			void (*f_func)(VectorXd& x_t, const VectorXd& x_t_1, const Vector3d w, const double dt);
 			void (*h_func)(VectorXd& z_t, const VectorXd& x_t);
-
-
 	};
 
 

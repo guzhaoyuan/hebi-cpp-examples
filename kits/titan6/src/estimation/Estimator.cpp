@@ -43,6 +43,22 @@ namespace hebi {
     state.resize(state_size);
     R = 0.1*MatrixXd::Identity(state_size, state_size);
     Q = 0.1*MatrixXd::Identity(measure_size, measure_size);
+
+  }
+
+	Estimator::Estimator(int state_size_, int measure_size_):
+    filter_initialized_(false)
+  {
+    state_size = state_size_;
+    measure_size = measure_size_;
+
+    f_func = &process_func_gyro;
+    h_func = &measure_func_acc;
+
+    state.resize(state_size);
+    // TODO: read noise from constructor input
+    R = 0.1*MatrixXd::Identity(state_size, state_size);
+    Q = 0.1*MatrixXd::Identity(measure_size, measure_size);
   }
 
   Estimator::~Estimator(){}
@@ -55,11 +71,12 @@ namespace hebi {
     state.segment<3>(0 + 4) = _b_g;
     state.segment<3>(0 + 4 + 3) = _b_a;
 
-    // delete previous filter if exists
-    if (ukf != NULL)
-    {
-      delete ukf;
-    }
+    // // delete previous filter if exists
+    // if (ukf != NULL)
+    // {
+    //   delete ukf;
+    // }
+
     ukf = new SRUKF(state_size, measure_size, 0.01, 0.4, f_func, h_func);
   
     ukf -> setR(R);
@@ -75,6 +92,12 @@ namespace hebi {
 		filter_initialized_ = true;
   }
 
+
+
+  void Estimator::update(const Vector3d& acc_b, const Vector3d& gyro_b, const double dt)
+  {
+    // do nothing first
+  }
 
   
 

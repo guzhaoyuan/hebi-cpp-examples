@@ -527,6 +527,35 @@ void Hexapod::publishStateEstimation()
 
 }
 
+// this theoratically only start once
+void Hexapod::startRecordBias()
+{
+  bias_record_start = true;
+  acc_bias_list.resize(0);
+  gyro_bias_list.resize(0);
+}
+
+void Hexapod::stopRecordBias()
+{
+  bias_record_start = false;
+  // calculate imu bias
+  VectorXd acc_bias(3); acc_bias << 0,0,0;
+  VectorXd gyro_bias(3); gyro_bias << 0,0,0;
+  Vector3d gravity(0,0,9.8);
+  int bias_list_size = acc_bias_list.size();
+  for (int i = 0; i < bias_list_size; i++)
+  {
+    acc_bias += (acc_bias_list[i]-gravity);
+    gyro_bias += gyro_bias_list[i];
+  }
+  acc_bias /= bias_list_size;
+  gyro_bias /= bias_list_size;
+  std::cout << "bias of acc  " << acc_bias.transpose() << std::endl
+            << "bias of gyro " << gyro_bias.transpose() << std::endl;
+  // set imu bias
+  estimator -> initialize(acc_bias, gyro_bias);
+}
+
 // Note -- because the "cmd_" object is a class member, we have to provide some constructor
 // here, and so we just give it a size '1' if there is no group.  This could become a smart
 // pointer instead?
@@ -583,7 +612,10 @@ Hexapod::Hexapod(std::shared_ptr<Group> group,
 
   // init estimator
   estimator = new Estimator();
-  
+  bias_record_start = false;
+  acc_bias_list.resize(0);
+  gyro_bias_list.resize(0);
+
   last_fbk = std::chrono::steady_clock::now();
   curr_fbk = std::chrono::steady_clock::now();
   // init fbk structures
@@ -608,7 +640,7 @@ Hexapod::Hexapod(std::shared_ptr<Group> group,
       curr_fbk = std::chrono::steady_clock::now();
       fbk_dt = curr_fbk - last_fbk;
       last_fbk = curr_fbk;
-      std::cout << "Time since last feedback: " << fbk_dt.count() << std::endl;
+      // std::cout << "Time since last feedback: " << fbk_dt.count() << std::endl;
 
       assert(fbk.size() == Leg::getNumJoints() * real_legs_.size());
 
@@ -618,7 +650,7 @@ Hexapod::Hexapod(std::shared_ptr<Group> group,
 
 
       // Get averaged body-frame IMU data for each leg
-      // TODO: For each, CHECK THIS IS VALID/HAS FEEDBACK!
+      // TODO: For each, CHECK THIS IS VALID/HASgravityFEEDBACK!
       int num_leg_joints = Leg::getNumJoints();
       for (int i = 0; i< num_legs_; i++)
       {
@@ -650,15 +682,28 @@ Hexapod::Hexapod(std::shared_ptr<Group> group,
       
         // rigid body dynamics, check wiki
         fbk_imus[i].acc_b = rotation_bs * fbk_imus[i].acc_s - fbk_imus[i].gyro_b.cross(fbk_imus[i].gyro_b.cross(distance_bs));
-        std::cout << " acce: "  << fbk_imus[i].acc_b(0) << "\t" << fbk_imus[i].acc_b(1) << "\t" << fbk_imus[i].acc_b(2) << std::endl; 
+        // std::cout << " acce: "  << fbk_imus[i].acc_b(0) << "\t" << fbk_imus[i].acc_b(1) << "\t" << fbk_imus[i].acc_b(2) << std::endl; 
       }   
 
       for (int i = 0; i< num_legs_; i++)
       {
-        std::cout << " gyro: " << fbk_imus[i].gyro_b(0) << "\t" << fbk_imus[i].gyro_b(1) << "\t" << fbk_imus[i].gyro_b(2) << std::endl; 
+        // std::cout << " gyro: " << fbk_imus[i].gyro_b(0) << "\t" << fbk_imus[i].gyro_b(1) << "\t" << fbk_imus[i].gyro_b(2) << std::endl; 
       }
 
+      // use one IMU first
+      // record IMU bias
+      if (bias_record_start)
+      {
+        acc_bias_list.push_back(fbk_imus[0].acc_b);
+        gyro_bias_list.push_back(fbk_imus[0].gyro_b); 
+      }
 
+      // estimator is initialized only after bias record is stoped and initial bias is recorded
+      if (estimator -> isInitialized())
+      {
+        // start to update filter
+        estimator -> update(fbk_imus[0].acc_b, fbk_imus[0].gyro_b, fbk_dt.count());
+      }
 
       // this real or not real legs are pretty annoying 
       int num_legs_used = std::max((int)real_legs_.size(), 1);
