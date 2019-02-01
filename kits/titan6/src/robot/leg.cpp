@@ -51,8 +51,8 @@ Leg::Leg(double angle_rad, double distance, const Eigen::VectorXd& current_angle
   computeFK(cmd_stance_xyz_, seed_angles_);
 
   // TODO: initialize better here? What did the MATLAB code do? (nevermind -- that fix wasn't
-  cmd_stance_xyz_ = fbk_stance_xyz_;
-
+  cmd_stance_xyz_ = home_stance_xyz_;
+  stance_vel_xyz_ = Vector3d(0,0,0);
 
   // build rbdl model 
   model = new RigidBodyDynamics::Model();
@@ -174,14 +174,18 @@ bool Leg::computeState(double t, Eigen::VectorXd& angles, Eigen::VectorXd& vels,
   }
   else // Stance
   {
-    auto res = kin_->solveIK(
-      seed_angles_,
-      angles,
-      robot_model::EndEffectorPositionObjective(cmd_stance_xyz_));
-    if (res.result != HebiStatusSuccess)
-    {
-      return false;
-    }
+    // auto res = kin_->solveIK(
+    //   seed_angles_,
+    //   angles,
+    //   robot_model::EndEffectorPositionObjective(cmd_stance_xyz_));
+    // if (res.result != HebiStatusSuccess)
+    // {
+    //   return false;
+    // }
+    Vector3d myangle;
+    computeIK(myangle, cmd_stance_xyz_);
+    angles = myangle;
+
     computeJacobians(angles, jacobian_ee, jacobian_com);
     // J(1:3,:) \ stance_vel_xyz)
     MatrixXd jacobian_part = jacobian_ee.topLeftCorner(3,jacobian_ee.cols());
@@ -342,7 +346,8 @@ void Leg::setDynamicsGravity(Eigen::VectorXd& gravity_vec)
 
 void Leg::initStance(Eigen::VectorXd& current_angles)
 {
-  computeFK(cmd_stance_xyz_, current_angles);
+  cmd_stance_xyz_ = home_stance_xyz_;
+  //computeFK(cmd_stance_xyz_, current_angles);
 }
 void Leg::startStep(double t)
 {

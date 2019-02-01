@@ -59,12 +59,15 @@ bool Step::update(double t, Leg* leg)
   int next_pt = 0;
   if (t == start_time_)// For initial time, add special velocity for lift off:
   {
-    kin.solveIK(
-      leg->getSeedAngles(),
-      ik_output,
-      robot_model::EndEffectorPositionObjective(lift_up_));
-    if (ik_output.size() == 0)
-      assert(false);
+    // kin.solveIK(
+    //   leg->getSeedAngles(),
+    //   ik_output,
+    //   robot_model::EndEffectorPositionObjective(lift_up_));
+    // if (ik_output.size() == 0)
+    //   assert(false);
+    Vector3d my_angles;
+    leg -> computeIK(my_angles, lift_up_);
+    ik_output = my_angles;
 
     // J(1:3, :) \ lift_off_vel;
     kin.getJEndEffector(ik_output, jacobian_ee);
@@ -97,10 +100,14 @@ bool Step::update(double t, Leg* leg)
   // Now, add remaining waypoints
   if ((time_[1] - elapsed) > ignore_waypoint_threshold_)
   {
-    kin.solveIK(
-      leg->getSeedAngles(),
-      ik_output,
-      robot_model::EndEffectorPositionObjective(mid_step_1_));
+    // kin.solveIK(
+    //   leg->getSeedAngles(),
+    //   ik_output,
+    //   robot_model::EndEffectorPositionObjective(mid_step_1_));
+
+    Vector3d my_angles;
+    leg -> computeIK(my_angles, mid_step_1_);
+    ik_output = my_angles;
     leg_waypoints.col(next_pt) = ik_output;
     leg_waypoint_vels.col(next_pt).setConstant(std::numeric_limits<double>::quiet_NaN());
     leg_waypoint_accels.col(next_pt).setConstant(std::numeric_limits<double>::quiet_NaN());
@@ -109,10 +116,14 @@ bool Step::update(double t, Leg* leg)
   }
   if ((time_[2] - elapsed) > ignore_waypoint_threshold_)
   {
-    kin.solveIK(
-      leg->getSeedAngles(),
-      ik_output,
-      robot_model::EndEffectorPositionObjective(touch_down_));
+    // kin.solveIK(
+    //   leg->getSeedAngles(),
+    //   ik_output,
+    //   robot_model::EndEffectorPositionObjective(touch_down_));
+    
+    Vector3d my_angles;
+    leg -> computeIK(my_angles, touch_down_);
+    ik_output = my_angles;
     // J(1:3, :) \ stance_vel;
     kin.getJEndEffector(ik_output, jacobian_ee);
     MatrixXd jacobian_part = jacobian_ee.topLeftCorner(3,jacobian_ee.cols());

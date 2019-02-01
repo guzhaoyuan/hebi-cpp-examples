@@ -387,8 +387,8 @@ void Hexapod::computeDynamicTorques(
 {
   Eigen::MatrixXd Kp(3,3); Kp = Eigen::Matrix3d::Identity(); //TODO: put it as a parameter in hex_config
   Eigen::MatrixXd Kd(3,3); Kd = Eigen::Matrix3d::Identity();
-  Kp(0,0) = 4; Kd(0,0) = 0.3;
-  Kp(1,1) = 8; Kd(1,1) = 0.2;
+  Kp(0,0) = 1; Kd(0,0) = 0.1;
+  Kp(1,1) = 4; Kd(1,1) = 0.1;
   Kp(2,2) = 1; Kd(2,2) = 0.1;
 
   Eigen::VectorXd modified_ddtheta_d = ddtheta_d;
@@ -671,7 +671,8 @@ Hexapod::Hexapod(std::shared_ptr<Group> group,
         tmp = fbk[i * num_leg_joints].imu().gyro().get();
         fbk_imus[i].gyro_s = Eigen::Vector3d(tmp.getX(), tmp.getY(), tmp.getZ());
       }
-      // print acc and gyro in body frame       
+      // print acc and gyro in body frame      
+      // TODO: use some ploting tools to make sure they are correct 
       for (int i = 0; i< num_legs_; i++)
       {
         auto base_frame = legs_[i] -> getKinematics().getBaseFrame();
@@ -682,7 +683,7 @@ Hexapod::Hexapod(std::shared_ptr<Group> group,
       
         // rigid body dynamics, check wiki
         fbk_imus[i].acc_b = rotation_bs * fbk_imus[i].acc_s - fbk_imus[i].gyro_b.cross(fbk_imus[i].gyro_b.cross(distance_bs));
-        std::cout << " accb: "  << fbk_imus[i].acc_b(0) << "\t" << fbk_imus[i].acc_b(1) << "\t" << fbk_imus[i].acc_b(2) << std::endl; 
+        // std::cout << " accb: "  << fbk_imus[i].acc_b(0) << "\t" << fbk_imus[i].acc_b(1) << "\t" << fbk_imus[i].acc_b(2) << std::endl; 
       }   
 
       for (int i = 0; i< num_legs_; i++)
@@ -692,17 +693,31 @@ Hexapod::Hexapod(std::shared_ptr<Group> group,
 
       // use one IMU first
       // record IMU bias
+      // use average of all base IMUs
+      Vector3d average_acc(3); average_acc << 0,0,0;
+      Vector3d average_gyro(3); average_gyro << 0,0,0;
+      for (int i = 0; i< num_legs_; i++)
+      {
+        average_acc += fbk_imus[i].acc_b;
+        average_gyro += fbk_imus[i].gyro_b;
+      }
+      average_acc /= num_legs_;
+      average_gyro /= num_legs_;
+
       if (bias_record_start)
       {
-        acc_bias_list.push_back(fbk_imus[2].acc_b);
-        gyro_bias_list.push_back(fbk_imus[2].gyro_b); 
+        // acc_bias_list.push_back(fbk_imus[2].acc_b);
+        // gyro_bias_list.push_back(fbk_imus[2].gyro_b); 
+        acc_bias_list.push_back(average_acc);
+        gyro_bias_list.push_back(average_gyro); 
       }
 
       // estimator is initialized only after bias record is stoped and initial bias is recorded
       if (estimator -> isInitialized())
       {
         // start to update filter
-        estimator -> update(fbk_imus[2].acc_b, fbk_imus[2].gyro_b, fbk_dt.count());
+        // estimator -> update(fbk_imus[2].acc_b, fbk_imus[2].gyro_b, fbk_dt.count());
+        estimator -> update(average_acc, average_gyro, fbk_dt.count());
         Quaterniond estimated_q = estimator -> getRotation();
         Matrix3d body_R = estimated_q.toRotationMatrix();
         Vector3d euler = body_R.eulerAngles(2,1,0);

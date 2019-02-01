@@ -549,7 +549,7 @@ int main(int argc, char** argv)
             positions.col(0) = leg_start;
             positions.col(1) = leg_start ;
             positions.col(2) = leg_mid ;
-            positions.col(3) = leg_end;
+            positions.col(3) = leg_mid;
             positions.col(4) = leg_end;
 
             velocities.col(1) = nan_column;
@@ -558,7 +558,7 @@ int main(int argc, char** argv)
             accelerations.col(3) = nan_column;
 
             Eigen::VectorXd times(num_waypoints);
-            double local_start = elapsed.count();
+            double local_start = 0;
             double total = startup_seconds;
             times << local_start,
                     local_start + total * 0.25,
@@ -601,7 +601,7 @@ int main(int argc, char** argv)
             // TODO: add actual foot torque for startup?
             Eigen::VectorXd foot_force(6); foot_force << 0,0,0,0,0,0;
             hexapod -> computeDynamicTorques(i, angles, vels, accels, gravity_vec, torques, foot_force);
-            angles(0) = NAN; vels(0) = NAN;
+
             hexapod->setCommand(i, &angles, &vels, &torques);
 
           }
@@ -656,7 +656,7 @@ int main(int argc, char** argv)
           // Calculate how the weight is distributed
           //hexapod->computeFootForces(state_run_time.count(), foot_forces);
           hexapod->updateStance(
-            translation_velocity_cmd.cast<double>(),
+            0.3*translation_velocity_cmd.cast<double>(),
             rotation_velocity_cmd.cast<double>(),
             dt.count());
           if (hexapod->needToStep())
@@ -701,9 +701,8 @@ int main(int argc, char** argv)
             
             hexapod -> computeDynamicTorques(i, angles, vels, accels, gravity_vec, torques, body_force);
             
-            angles(0) = NAN; 
-            vels(0) = NAN;
-            // hexapod->setCommand(i, &angles, &vels, &torques);
+
+            hexapod->setCommand(i, &angles, &vels, &torques);
           }
           hexapod->sendCommand();
           break;
