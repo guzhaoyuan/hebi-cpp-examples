@@ -6,6 +6,7 @@ namespace hebi {
   // in this, we assume x_t only has dim 4
   void process_func_gyro(VectorXd& x_t, const VectorXd& x_t_1, const Vector3d w, const double dt)
   {
+    // cout <<"reach " << __FILE__ << __LINE__ << endl;
     Quaterniond q_1(x_t_1.segment<4>(0));
     // Estimated gyro bias
     Vector3d b_g(x_t_1.segment<3>(0 + 4));
@@ -19,6 +20,7 @@ namespace hebi {
     Quaterniond q = Quaterniond((Matrix4d::Identity() + Omega(w_b * dt) / 2.0)*q_1.coeffs());
     q.normalize();
 
+    // cout <<"reach " << __FILE__ << __LINE__ << endl;
     x_t.segment<4>(0) = q.coeffs();
     x_t.segment<3>(0 + 4) = b_g;
     x_t.segment<3>(0 + 4 + 3) = b_a;
@@ -27,7 +29,7 @@ namespace hebi {
   void measure_func_acc(VectorXd& z_t, const VectorXd& x_t)
   {
     Quaterniond q(x_t.segment<4>(0));
-    Vector3d g_e(0,0,-9.8);
+    Vector3d g_e(0,0,9.8);
     z_t = q.inverse() * g_e;
   }
 
@@ -41,8 +43,8 @@ namespace hebi {
     h_func = &measure_func_acc;
 
     state.resize(state_size);
-    R = 0.1*MatrixXd::Identity(state_size, state_size);
-    Q = 0.1*MatrixXd::Identity(measure_size, measure_size);
+    Q = 0.1*MatrixXd::Identity(state_size, state_size);
+    R = 0.1*MatrixXd::Identity(measure_size, measure_size);
 
   }
 
@@ -57,8 +59,8 @@ namespace hebi {
 
     state.resize(state_size);
     // TODO: read noise from constructor input
-    R = 0.1*MatrixXd::Identity(state_size, state_size);
-    Q = 0.1*MatrixXd::Identity(measure_size, measure_size);
+    Q = 0.1*MatrixXd::Identity(state_size, state_size);
+    R = 0.1*MatrixXd::Identity(measure_size, measure_size);
   }
 
   Estimator::~Estimator(){}
@@ -79,14 +81,14 @@ namespace hebi {
 
     ukf = new SRUKF(state_size, measure_size, 0.01, 0.4, f_func, h_func);
   
-    ukf -> setR(R);
     ukf -> setQ(Q);
+    ukf -> setR(R);
 
     ukf -> state_pre = state;
     ukf -> state_post = state;
 
-    ukf->S_pre = MatrixXd::Identity(state_size,measure_size);
-		ukf->S_post = MatrixXd::Identity(state_size,measure_size);
+    ukf->S_pre = MatrixXd::Identity(state_size,state_size);
+		ukf->S_post = MatrixXd::Identity(state_size,state_size);
 
 
 		filter_initialized_ = true;
@@ -96,10 +98,20 @@ namespace hebi {
 
   void Estimator::update(const Vector3d& acc_b, const Vector3d& gyro_b, const double dt)
   {
-    // do nothing first
+    ukf -> predict(gyro_b, dt);
+    ukf -> correct(acc_b);
   }
 
-  
+  void Estimator::getState(VectorXd & estimate_state)
+  {
+    estimate_state = ukf -> state_post;
+  }
+
+	Quaterniond Estimator::getRotation()
+  {
+    Quaterniond q(ukf -> state_post.segment<4>(0));
+    return q;
+  }
 
 
 

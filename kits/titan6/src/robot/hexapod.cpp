@@ -682,7 +682,7 @@ Hexapod::Hexapod(std::shared_ptr<Group> group,
       
         // rigid body dynamics, check wiki
         fbk_imus[i].acc_b = rotation_bs * fbk_imus[i].acc_s - fbk_imus[i].gyro_b.cross(fbk_imus[i].gyro_b.cross(distance_bs));
-        // std::cout << " acce: "  << fbk_imus[i].acc_b(0) << "\t" << fbk_imus[i].acc_b(1) << "\t" << fbk_imus[i].acc_b(2) << std::endl; 
+        std::cout << " accb: "  << fbk_imus[i].acc_b(0) << "\t" << fbk_imus[i].acc_b(1) << "\t" << fbk_imus[i].acc_b(2) << std::endl; 
       }   
 
       for (int i = 0; i< num_legs_; i++)
@@ -694,16 +694,23 @@ Hexapod::Hexapod(std::shared_ptr<Group> group,
       // record IMU bias
       if (bias_record_start)
       {
-        acc_bias_list.push_back(fbk_imus[0].acc_b);
-        gyro_bias_list.push_back(fbk_imus[0].gyro_b); 
+        acc_bias_list.push_back(fbk_imus[2].acc_b);
+        gyro_bias_list.push_back(fbk_imus[2].gyro_b); 
       }
 
       // estimator is initialized only after bias record is stoped and initial bias is recorded
       if (estimator -> isInitialized())
       {
         // start to update filter
-        estimator -> update(fbk_imus[0].acc_b, fbk_imus[0].gyro_b, fbk_dt.count());
+        estimator -> update(fbk_imus[2].acc_b, fbk_imus[2].gyro_b, fbk_dt.count());
+        Quaterniond estimated_q = estimator -> getRotation();
+        Matrix3d body_R = estimated_q.toRotationMatrix();
+        Vector3d euler = body_R.eulerAngles(2,1,0);
+        Vector3d vec = body_R*Vector3d(0,0,1);
+        //std::cout << "Euler angles: " << euler(0) <<"\t" << euler(1) <<"\t" << euler(2) << std::endl;
+        std::cout << "rotate vector: " << vec(0) <<"\t" << vec(1) <<"\t" << vec(2) << std::endl;
       }
+
 
       // this real or not real legs are pretty annoying 
       int num_legs_used = std::max((int)real_legs_.size(), 1);

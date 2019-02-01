@@ -26,7 +26,8 @@ namespace hebi {
 			void initialize(VectorXd& b_g, VectorXd& b_a);
 			bool isInitialized(){return filter_initialized_;}
 
-			bool getState(VectorXd & estimate_state);
+			void getState(VectorXd & estimate_state);
+			Quaterniond getRotation();
 
 			void update(const Vector3d& acc_b, const Vector3d& gyro_b, const double dt);
 

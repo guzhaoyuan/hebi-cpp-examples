@@ -123,40 +123,43 @@ void SRUKF::predict(const Vector3d a, const double dt)
 {
     //TODO: check if state_post is empty or not, 
     //      currently just assume state_post is ready to use
-    //cout << "predict start ===========================" << endl;
+    // cout << "predict start ===========================" << endl;
     sigmaPoints.resize(0,0);
     sigmaPoints = state_post.replicate(1,2*n+1);
+    // cout << "sOSigmaPoints:\n" << sigmaPoints << endl << endl;
     sigmaPoints.block(0,1,n,n) += gamma * S_post;
     sigmaPoints.block(0,n+1,n,n) -= gamma * S_post;
 
+    // cout << "sigmaPoints:\n" << sigmaPoints << endl << endl;
     x_tmp.resize(n);
     for (int i = 0; i < 2*n+1; i++)
     {
         f_func(x_tmp, sigmaPoints.col(i), a, dt);
         sigmaPoints.col(i) = x_tmp;
     }
+    // cout << "sigmaPoints:\n" << sigmaPoints << endl << endl;
 
     state_pre = w_m0* sigmaPoints.col(0);
     for (int i = 1; i < 2*n+1; i++)
         state_pre += w_mi * sigmaPoints.col(i);
 
-    OS.resize(n, 3*n);
+    OS = MatrixXd(n, 3*n);
 
     OS.block(0,0,n,2*n) = sqrt(w_ci)*(sigmaPoints.block(0,1,n,2*n)
                           - state_pre.replicate(1,2*n));
     OS.block(0,2*n,n,n) = Q; 
 
-    //cout << "OS:\n" << OS << endl << endl;
-    //cout <<"reach " << __FILE__ << __LINE__ << endl;
+    // cout << "OS:\n" << OS << endl << endl;
+    // cout <<"reach " << __FILE__ << __LINE__ << endl;
     qrSolver.compute(OS.transpose());
     m_q = qrSolver.householderQ();
     m_r = qrSolver.matrixQR().triangularView<Upper>();
 
-    //cout <<"reach " << __FILE__ << __LINE__ << endl;
+    // cout <<"reach " << __FILE__ << __LINE__ << endl;
     //cout << "QR error: " << (m_q*m_r - OS.transpose()).norm() << endl << endl;
 
     S_pre = m_r.block(0,0,n,n).transpose();
-    //cout <<"reach " << __FILE__ << __LINE__ << endl;
+    // cout <<"reach " << __FILE__ << __LINE__ << endl;
     //cout << "S_pre before update:\n" << S_pre << endl << endl;
     //cout << "sigma point 0" << sigmaPoints.col(0).transpose() << endl << endl; 
     //cout << "state_pre:\n" << state_pre.transpose() << endl << endl; 
@@ -173,7 +176,7 @@ void SRUKF::predict(const Vector3d a, const double dt)
     for (int i = 1; i < n; i++)
         for (int j = 0; j < i; j++)
             S_pre(i,j) = 0;
-    //cout <<"reach " << __FILE__ << __LINE__ << endl;
+    // cout <<"reach " << __FILE__ << __LINE__ << endl;
     /*
     if (w_c0 < 0)
         internal::ldlt_inplace<Lower>::updateInPlace(S_pre, sqrt(-w_c0)*(sigmaPoints.col(0) - state_pre), -1);
@@ -181,12 +184,12 @@ void SRUKF::predict(const Vector3d a, const double dt)
         internal::ldlt_inplace<Lower>::updateInPlace(S_pre, sqrt(w_c0)*(sigmaPoints.col(0) - state_pre), 1);
     */
     //cout << "S_pre after update: \n" << S_pre << endl << endl; 
-    //cout << "predict end ===========================" << endl;
+    // cout << "predict end ===========================" << endl;
 }
 
 void SRUKF::correct(const VectorXd& z_t)
 {
-    //cout << "correct ===========================" << endl;
+    // cout << "correct ===========================" << endl;
     sigmaPoints.resize(0,0);
     sigmaPoints = state_pre.replicate(1,2*n+1);
 
@@ -205,27 +208,27 @@ void SRUKF::correct(const VectorXd& z_t)
         sigmaZ.col(i) = z_tmp;
     }
 
-    //cout << "sigmaZ\n" << sigmaZ << endl << endl;
+    // cout << "sigmaZ\n" << sigmaZ << endl << endl;
 
     z_t_bar = w_m0*sigmaZ.col(0); 
     for (int i = 1; i < 2*n+1; i++)
         z_t_bar += w_mi * sigmaZ.col(i);
 
 
-    //cout << "z_t_bar\n" << z_t_bar << endl << endl;
+    // cout << "z_t_bar\n" << z_t_bar << endl << endl;
 
-    OS.resize(m, 2*n+m);
+    OS = MatrixXd(m, 2*n+m);
     OS.block(0,0,m,2*n) = sqrt(w_ci)*(sigmaZ.block(0,1,m,2*n)
                           - z_t_bar.replicate(1,2*n));
     OS.block(0,2*n,m,m) = R; 
 
-    //cout << "OS:\n" << OS << endl << endl;
+    // cout << "OS:\n" << OS << endl << endl;
     qrSolver.compute(OS.transpose());
     m_r = qrSolver.matrixQR().triangularView<Upper>();
 
-    S_y_bar = m_r.block(0,0,n,n).transpose();
+    S_y_bar = m_r.block(0,0,m,m).transpose();
 
-    //cout << "S_y_bar\n" << S_y_bar << endl << endl;
+    // cout << "S_y_bar\n" << S_y_bar << endl << endl;
     if (w_c0 < 0)
         internal::llt_inplace<double,Upper>::rankUpdate(S_y_bar, 
             sqrt(-w_c0)*(sigmaZ.col(0) - z_t_bar), 
@@ -234,7 +237,7 @@ void SRUKF::correct(const VectorXd& z_t)
         internal::llt_inplace<double,Upper>::rankUpdate(S_y_bar, 
             sqrt(w_c0)*(sigmaZ.col(0) - z_t_bar), 
             1);
-    for (int i = 1; i < n; i++)
+    for (int i = 1; i < m; i++)
         for (int j = 0; j < i; j++)
             S_y_bar(i,j) = 0;
 
@@ -246,27 +249,27 @@ void SRUKF::correct(const VectorXd& z_t)
                           * (sigmaZ.col(i) - z_t_bar).transpose(); 
     }
 
-    //cout << "P_t_xz_bar\n" << P_t_xz_bar << endl << endl;
+    // cout << "P_t_xz_bar\n" << P_t_xz_bar << endl << endl;
     qrSolver.compute(S_y_bar);
     K_tmp = qrSolver.solve(P_t_xz_bar.transpose());
     
     qrSolver.compute(S_y_bar.transpose());
-    K_t = qrSolver.solve(K_tmp);
+    K_t = qrSolver.solve(K_tmp).transpose();
 
-    //cout << "K_t\n" << K_t << endl << endl;
+    // cout << "K_t\n" << K_t << endl << endl;
 
     state_post = state_pre + K_t*(z_t - z_t_bar);
 
-    U = K_t * P_t_xz_bar;
+    U = K_t * S_y_bar;
     S_post = S_pre;
 
-    for (int i = 0; i<n;i++)
+    for (int i = 0; i<m;i++)
         internal::llt_inplace<double,Lower>::rankUpdate(S_post, 
             U.col(i), 
             -1);
     for (int i = 1; i < n; i++)
         for (int j = 0; j < i; j++)
             S_post(i,j) = 0;
-    //cout << "state_post: \n" << state_post << endl << endl; 
-    //cout << "S_post: \n" << S_post << endl << endl; 
+    // cout << "state_post: \n" << state_post << endl << endl; 
+    // cout << "S_post: \n" << S_post << endl << endl; 
 }

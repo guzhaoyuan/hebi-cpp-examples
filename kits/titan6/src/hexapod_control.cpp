@@ -703,7 +703,7 @@ int main(int argc, char** argv)
             
             angles(0) = NAN; 
             vels(0) = NAN;
-            hexapod->setCommand(i, &angles, &vels, &torques);
+            // hexapod->setCommand(i, &angles, &vels, &torques);
           }
           hexapod->sendCommand();
           break;
