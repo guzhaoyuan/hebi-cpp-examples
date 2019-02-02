@@ -89,13 +89,15 @@ SET(INPUT_TEST_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/src/xml_util/xml_helpers.cpp
 )
 
+add_library(ModernRoboticsCpp SHARED src/util/modern_robotics.cpp src/util/modern_robotics.hpp)
+
 add_executable(hexapod_control ${SOURCES} $<TARGET_OBJECTS:hexapod_core>)
 qt5_use_modules(hexapod_control Core Gui Widgets)
 
 if (WIN32) 
-target_link_libraries( hexapod_control hebi kernel32 ${RBDL_LIBRARY}) # kernel32 for sleep commands.
+target_link_libraries( hexapod_control hebi kernel32 ${RBDL_LIBRARY} ModernRoboticsCpp) # kernel32 for sleep commands.
 else()
-target_link_libraries( hexapod_control hebi hebic++ m pthread ${RBDL_LIBRARY})
+target_link_libraries( hexapod_control hebi hebic++ m pthread ${RBDL_LIBRARY} ModernRoboticsCpp)
 endif()
 
 # Add ultra-conservative warnings.

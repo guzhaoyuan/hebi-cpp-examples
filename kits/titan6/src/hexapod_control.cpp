@@ -599,7 +599,7 @@ int main(int argc, char** argv)
               hexapod_display->updateLeg(curr_leg, i, angles);
             
             // TODO: add actual foot torque for startup?
-            Eigen::VectorXd foot_force(6); foot_force << 0,0,0,0,0,0;
+            Eigen::VectorXd foot_force(6); foot_force << 0,0,0,21*9.8/6,0,0;
             hexapod -> computeDynamicTorques(i, angles, vels, accels, gravity_vec, torques, foot_force);
 
             hexapod->setCommand(i, &angles, &vels, &torques);
@@ -682,22 +682,22 @@ int main(int argc, char** argv)
 
             Eigen::VectorXd body_force(6); body_force << 0,0,0,0,0,0;
             // std::cout << hexapod -> isStepping() << std::endl;
-            // if (hexapod -> isStepping())
-            // {
-            //   if (curr_leg->getMode() == Leg::Mode::Flight)
-            //   {
-            //     body_force(5) = 0;
-            //   }    
-            //   else
-            //   {
-            //     body_force(5) = -25*9.8/3.0;
-            //   }
+            if (hexapod -> isStepping())
+            {
+              if (curr_leg->getMode() == Leg::Mode::Flight)
+              {
+                body_force(3) = 0;
+              }    
+              else
+              {
+                body_force(3) = 21*9.8/3.0;
+              }
                 
-            // }
-            // else
-            // {
-            //   body_force(5) = -25*9.8/6.0;
-            // }
+            }
+            else
+            {
+              body_force(3) = 21*9.8/6.0;
+            }
             
             hexapod -> computeDynamicTorques(i, angles, vels, accels, gravity_vec, torques, body_force);
             

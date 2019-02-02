@@ -1,4 +1,5 @@
 #include "leg.hpp"
+#include "../util/modern_robotics.hpp"
 #include <iostream>
 
 
@@ -160,6 +161,37 @@ bool Leg::computeJacobians(const Eigen::VectorXd& angles, Eigen::MatrixXd& jacob
   kin_->getJEndEffector(angles, jacobian_ee);
   kin_->getJ(HebiFrameTypeCenterOfMass, angles, jacobian_com);
 }
+
+Eigen::MatrixXd Leg::computerJacobianBody(const Eigen::VectorXd& angles)
+{
+  bool isLeft = configuration == LegConfiguration::Left;
+  const double t = isLeft?(4.5057/100):(-4.5057/100);
+  // get body twist list first
+  int num_angles = angles.size();
+  Eigen::MatrixXd b_list(6, num_angles); // twist list
+  Eigen::Vector3d w(0,0,1);
+  Eigen::Vector3d q(-L1-L2,t,0);
+  Eigen::VectorXd twist(6);
+  twist.segment<3>(0) = w;
+  twist.segment<3>(3) = -w.cross(q);
+  b_list.col(0) <<  twist;                 // joint1
+
+
+  w = isLeft?Eigen::Vector3d(0,1,0):Eigen::Vector3d(0,-1,0);
+  q = Eigen::Vector3d(-L1-L2,t,0);
+  twist.segment<3>(0) = w;
+  twist.segment<3>(3) = -w.cross(q);
+  b_list.col(1) <<  twist;                //  joint2
+
+  w = isLeft?Eigen::Vector3d(0,-1,0):Eigen::Vector3d(0,1,0);
+  q = Eigen::Vector3d(-L2,t,0);
+  twist.segment<3>(0) = w;
+  twist.segment<3>(3) = -w.cross(q);
+  b_list.col(2) <<  twist;                //  joint3
+
+ return mr::JacobianBody(b_list, angles);
+
+}
  
 bool Leg::computeState(double t, Eigen::VectorXd& angles, Eigen::VectorXd& vels, Eigen::VectorXd& accels, Eigen::MatrixXd& jacobian_ee, robot_model::MatrixXdVector& jacobian_com)
 {
@@ -317,26 +349,9 @@ void Leg::computeFK(Eigen::Vector3d& ee_com_pos, Eigen::VectorXd angles)
   ee_com_pos(2) = dZ_leg + mount_point(2);
 }
 
-void Leg::getInverseDynamics(Eigen::VectorXd& theta_d, Eigen::VectorXd& dtheta_d, Eigen::VectorXd& ddtheta_d, Eigen::VectorXd& tau, Eigen::VectorXd& f_ext)
+void Leg::getInverseDynamics(Eigen::VectorXd& theta_d, Eigen::VectorXd& dtheta_d, Eigen::VectorXd& ddtheta_d, Eigen::VectorXd& tau)
 {
-  //std::cout << model->dof_count << std::endl;
-  RigidBodyDynamics::Math::SpatialVector f_ext_zero(0,0,0,0,0,0);
-  RigidBodyDynamics::Math::SpatialVector f_ext_vec(f_ext);
-  std::vector<RigidBodyDynamics::Math::SpatialVector> f_ext_vec_list;
-  // base does not have force when 
-  if (getMode() == Leg::Mode::Flight)
-  {
-    f_ext_vec_list.push_back(f_ext_zero);
-  }
-  else
-  {
-    f_ext_vec_list.push_back(f_ext_vec);
-  }
-  
-  f_ext_vec_list.push_back(f_ext_zero);
-  f_ext_vec_list.push_back(f_ext_zero);
-  f_ext_vec_list.push_back(-f_ext_vec);
-  RigidBodyDynamics::InverseDynamics(*model, theta_d, dtheta_d, ddtheta_d, tau, &f_ext_vec_list);
+  RigidBodyDynamics::InverseDynamics(*model, theta_d, dtheta_d, ddtheta_d, tau);
 }
 
 void Leg::setDynamicsGravity(Eigen::VectorXd& gravity_vec)

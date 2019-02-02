@@ -23,6 +23,10 @@ public:
   // step control), this can be used to get these jacobians from the internal
   // kinematics object.
   bool computeJacobians(const Eigen::VectorXd& angles, Eigen::MatrixXd& jacobian_ee, robot_model::MatrixXdVector& jacobian_com);
+  
+  // use mr library to calcuate jacobian in body frame
+  Eigen::MatrixXd computerJacobianBody(const Eigen::VectorXd& angles);
+
   // TODO: return value?  What if IK fails?
   bool computeState(double t, Eigen::VectorXd& angles, Eigen::VectorXd& vels, Eigen::VectorXd& accels, Eigen::MatrixXd& jacobian_ee, robot_model::MatrixXdVector& jacobian_com);
 
@@ -38,7 +42,7 @@ public:
   void computeFK(Eigen::Vector3d& ee_com_pos, Eigen::VectorXd angles);
 
   // inverse dynamics 
-  void getInverseDynamics(Eigen::VectorXd& theta_d, Eigen::VectorXd& dtheta_d, Eigen::VectorXd& ddtheta_d, Eigen::VectorXd& tau, Eigen::VectorXd& f_ext);
+  void getInverseDynamics(Eigen::VectorXd& theta_d, Eigen::VectorXd& dtheta_d, Eigen::VectorXd& ddtheta_d, Eigen::VectorXd& tau);
   void setDynamicsGravity(Eigen::VectorXd& gravity_vec);
 
   const double getLevelHomeStanceZ() const { return level_home_stance_xyz_(2); }

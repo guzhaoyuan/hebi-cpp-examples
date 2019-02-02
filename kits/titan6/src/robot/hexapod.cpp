@@ -6,7 +6,7 @@
 #include "step.hpp"
 
 #include "hexapod.hpp"
-
+#include "../util/modern_robotics.hpp"
 
 #include <chrono>
 #include <thread>
@@ -387,7 +387,7 @@ void Hexapod::computeDynamicTorques(
 {
   Eigen::MatrixXd Kp(3,3); Kp = Eigen::Matrix3d::Identity(); //TODO: put it as a parameter in hex_config
   Eigen::MatrixXd Kd(3,3); Kd = Eigen::Matrix3d::Identity();
-  Kp(0,0) = 1; Kd(0,0) = 0.1;
+  Kp(0,0) = 0.3; Kd(0,0) = 0.01;
   Kp(1,1) = 4; Kd(1,1) = 0.1;
   Kp(2,2) = 1; Kd(2,2) = 0.1;
 
@@ -396,7 +396,15 @@ void Hexapod::computeDynamicTorques(
   Eigen::VectorXd curr_theta = fbk_legs[leg_index].joint_ang;
   Eigen::VectorXd curr_dtheta = fbk_legs[leg_index].joint_vel;
   getLeg(leg_index) -> setDynamicsGravity(gravity_vec);
-  getLeg(leg_index) -> getInverseDynamics(curr_theta, curr_dtheta, modified_ddtheta_d, tau, f_ext);
+  getLeg(leg_index) -> getInverseDynamics(curr_theta, curr_dtheta, modified_ddtheta_d, tau);
+
+  Eigen::MatrixXd Jb = getLeg(leg_index) -> computerJacobianBody(curr_theta);
+  std::cout << "theta" << curr_theta.transpose() << std::endl;
+  std::cout << "Jb" << Jb.transpose() << std::endl;
+  // ground force compensation
+  tau = tau + Jb.transpose()*f_ext;
+  std::cout << "additional joint force" << Jb.transpose()*f_ext << std::endl;
+
 }
 
 // TODO: make this a class function and remove parameters? Make it better!
