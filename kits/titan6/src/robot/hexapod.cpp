@@ -91,7 +91,7 @@ void Hexapod::updateStance(const Eigen::Vector3d& translation_velocity, const Ei
   for (int i = 0; i < num_legs_; ++i)
   {
     // subsample from full vector
-    current_leg_angles = fbk_legs[i].joint_ang;
+    current_leg_angles = all_angles.segment(num_joints * i, num_joints);
     // Update stance of leg
     legs_[i]->updateStance(trans_vel_limited, rot_vel_limited, current_leg_angles, dt);
   }
