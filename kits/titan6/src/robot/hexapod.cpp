@@ -91,7 +91,7 @@ void Hexapod::updateStance(const Eigen::Vector3d& translation_velocity, const Ei
   for (int i = 0; i < num_legs_; ++i)
   {
     // subsample from full vector
-    current_leg_angles = all_angles.segment(num_joints * i, num_joints);
+    current_leg_angles = fbk_legs[i].joint_ang;
     // Update stance of leg
     legs_[i]->updateStance(trans_vel_limited, rot_vel_limited, current_leg_angles, dt);
   }
@@ -387,9 +387,9 @@ void Hexapod::computeDynamicTorques(
 {
   Eigen::MatrixXd Kp(3,3); Kp = Eigen::Matrix3d::Identity(); //TODO: put it as a parameter in hex_config
   Eigen::MatrixXd Kd(3,3); Kd = Eigen::Matrix3d::Identity();
-  Kp(0,0) = 0.3; Kd(0,0) = 0.01;
-  Kp(1,1) = 4; Kd(1,1) = 0.1;
-  Kp(2,2) = 1; Kd(2,2) = 0.1;
+  Kp(0,0) = params_.Kp_base; Kd(0,0) = params_.Kd_base;
+  Kp(1,1) = params_.Kp_shoulder; Kd(1,1) = params_.Kd_shoulder;
+  Kp(2,2) = params_.Kp_elbow; Kd(2,2) = params_.Kd_elbow;
 
   Eigen::VectorXd modified_ddtheta_d = ddtheta_d;
   modified_ddtheta_d += Kp*(theta_d - fbk_legs[leg_index].joint_ang) + Kd*(dtheta_d - fbk_legs[leg_index].joint_vel);
@@ -398,12 +398,19 @@ void Hexapod::computeDynamicTorques(
   getLeg(leg_index) -> setDynamicsGravity(gravity_vec);
   getLeg(leg_index) -> getInverseDynamics(curr_theta, curr_dtheta, modified_ddtheta_d, tau);
 
+  Eigen::VectorXd F_spatial = f_ext;
+  Eigen::MatrixXd g_st = getLeg(leg_index) -> computerEEFKInSpace(curr_theta);
   Eigen::MatrixXd Jb = getLeg(leg_index) -> computerJacobianBody(curr_theta);
-  std::cout << "theta" << curr_theta.transpose() << std::endl;
-  std::cout << "Jb" << Jb.transpose() << std::endl;
+  Eigen::MatrixXd Js = getLeg(leg_index) -> computerJacobianSpatial(curr_theta);
+  // std::cout << "theta" << curr_theta.transpose() << std::endl;
+  // std::cout << "Jb" << Jb.transpose() << std::endl;
   // ground force compensation
-  tau = tau + Jb.transpose()*f_ext;
-  std::cout << "additional joint force" << Jb.transpose()*f_ext << std::endl;
+  Eigen::VectorXd f_add(6);
+  f_add.segment<3>(0) = Eigen::Vector3d(0,0,0);               // ground torque
+  f_add.segment<3>(3) = g_st.topLeftCorner<3,3>().transpose()*F_spatial;  // ground force
+  tau = tau + Jb.transpose()*f_add;
+  // tau = tau + Js.transpose()*f_ext;
+  // std::cout << "additional joint force" << Jb.transpose()*f_ext << std::endl;
 
 }
 
@@ -694,10 +701,26 @@ Hexapod::Hexapod(std::shared_ptr<Group> group,
         // std::cout << " accb: "  << fbk_imus[i].acc_b(0) << "\t" << fbk_imus[i].acc_b(1) << "\t" << fbk_imus[i].acc_b(2) << std::endl; 
       }   
 
-      for (int i = 0; i< num_legs_; i++)
+      // for (int i = 0; i< num_legs_; i++)
       {
-        // std::cout << " gyro: " << fbk_imus[i].gyro_b(0) << "\t" << fbk_imus[i].gyro_b(1) << "\t" << fbk_imus[i].gyro_b(2) << std::endl; 
+        int i = 4;
+        Eigen::VectorXd my_angles = fbk_legs[i].joint_ang;
+        // std::cout <<"my_angles " << my_angles << std::endl;
+        Eigen::MatrixXd Jb = legs_[i]->computerJacobianBody(my_angles);
+        // std::cout <<"Jb " << Jb << std::endl;
+        Eigen::MatrixXd g_st = legs_[i]->computerEEFKInSpace(my_angles);
+
+        // std::cout <<"g_st " << g_st << std::endl;
+
+        // std::cout <<"fbk_legs[i].joint_vel " << fbk_legs[i].joint_vel << std::endl;
+
+        // std::cout <<"reach " << __FILE__ << __LINE__ << std::endl;
+        // out_vel is the velocity of end effector represented in world frame
+        Eigen::VectorXd ee_vel = Jb*fbk_legs[i].joint_vel;
+        Eigen::VectorXd out_vel = g_st.topLeftCorner<3,3>() * ee_vel.segment<3>(3);   // last 3 of ee_vel are velocity
+        // std::cout << " velocity: " << out_vel(0) << "\t" << out_vel(1) << "\t" << out_vel(2) << std::endl; 
       }
+
 
       // use one IMU first
       // record IMU bias
@@ -730,8 +753,11 @@ Hexapod::Hexapod(std::shared_ptr<Group> group,
         Matrix3d body_R = estimated_q.toRotationMatrix();
         Vector3d euler = body_R.eulerAngles(2,1,0);
         Vector3d vec = body_R*Vector3d(0,0,1);
+
+
+
         //std::cout << "Euler angles: " << euler(0) <<"\t" << euler(1) <<"\t" << euler(2) << std::endl;
-        std::cout << "rotate vector: " << vec(0) <<"\t" << vec(1) <<"\t" << vec(2) << std::endl;
+        // std::cout << "rotate vector: " << vec(0) <<"\t" << vec(1) <<"\t" << vec(2) << std::endl;
       }
 
 

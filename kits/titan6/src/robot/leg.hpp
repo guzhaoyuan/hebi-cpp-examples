@@ -26,6 +26,8 @@ public:
   
   // use mr library to calcuate jacobian in body frame
   Eigen::MatrixXd computerJacobianBody(const Eigen::VectorXd& angles);
+  Eigen::MatrixXd computerJacobianSpatial(const Eigen::VectorXd& angles);
+  Eigen::MatrixXd computerEEFKInSpace(const Eigen::VectorXd& angles);
 
   // TODO: return value?  What if IK fails?
   bool computeState(double t, Eigen::VectorXd& angles, Eigen::VectorXd& vels, Eigen::VectorXd& accels, Eigen::MatrixXd& jacobian_ee, robot_model::MatrixXdVector& jacobian_com);
@@ -92,7 +94,7 @@ private:
   const double L1 = 0.325;
   const double L2 = 0.325;
   const double left_tran =  0.0425;
-  const double left_d1Z = 0.07105;  // from base center to first joint, distance Z
+  const double d1Z = 0.07105;  // from base center to first joint, distance Z
 
   std::unique_ptr<hebi::robot_model::RobotModel> kin_;
   // Note -- one mass element for each COM frame in the kinematics!
@@ -103,6 +105,12 @@ private:
   unsigned int body_base_id, body_1_id, body_2_id, body_3_id;
   RigidBodyDynamics::Body body_base, body_1, body_2, body_3;
   RigidBodyDynamics::Joint joint_float, joint_1, joint_2, joint_3;
+
+  // I need to refactor all of them...
+  // use twist and modern robotics lib to compute FK and jacobian, so we need spatial twist list and body twist list
+  Eigen::MatrixXd s_list;
+  Eigen::MatrixXd b_list;
+  
 
   // Allow Eigen member variables:
 public:

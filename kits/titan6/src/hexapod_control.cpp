@@ -404,8 +404,8 @@ int main(int argc, char** argv)
   // ctrl_state_type curr_ctrl_state = LEG_DYN_CTRL_TEST_PLAN;
   //tripod_gait_state curr_gait_state = STANCE;
   // state transition parameters
-  double startup_seconds = 5;
-  double bias_record_seconds = 3;
+  double startup_seconds = params.startup_second;
+  double bias_record_seconds = params.bias_record_second;
   // some time for state use
   auto state_enter_time = std::chrono::steady_clock::now(); 
   auto state_curr_time = std::chrono::steady_clock::now(); 
@@ -599,10 +599,13 @@ int main(int argc, char** argv)
               hexapod_display->updateLeg(curr_leg, i, angles);
             
             // TODO: add actual foot torque for startup?
-            Eigen::VectorXd foot_force(6); foot_force << 0,0,0,21*9.8/6,0,0;
-            hexapod -> computeDynamicTorques(i, angles, vels, accels, gravity_vec, torques, foot_force);
+            Eigen::VectorXd ground_force(3); ground_force << 0,0,21*9.8/6.0;
+            hexapod -> computeDynamicTorques(i, angles, vels, accels, gravity_vec, torques, ground_force);
 
+            Eigen::VectorXd nan_vel(3); nan_vel << NAN, NAN, NAN;
+            // hexapod->setCommand(i, &nan_vel, &nan_vel, &nan_vel);
             hexapod->setCommand(i, &angles, &vels, &torques);
+            // std::cout << angles << std::endl;
 
           }
           hexapod->sendCommand();
@@ -611,7 +614,8 @@ int main(int argc, char** argv)
           {
             curr_ctrl_state = TITAN6_CTRL_STAND_UP3;
             state_enter_time = std::chrono::steady_clock::now();
-            
+          
+            std::cout << "read to record sensor bias!" << std::endl;  
             hexapod -> startRecordBias();
           }
           break;
@@ -637,6 +641,7 @@ int main(int argc, char** argv)
             curr_ctrl_state = TITAN6_TRIPOD_GAIT;
             state_enter_time = std::chrono::steady_clock::now();
             hexapod -> stopRecordBias();
+            std::cout << "stop recording sensor bias!" << std::endl;  
             hexapod -> initStance(state_run_time.count()); 
           }
           break;
@@ -656,7 +661,7 @@ int main(int argc, char** argv)
           // Calculate how the weight is distributed
           //hexapod->computeFootForces(state_run_time.count(), foot_forces);
           hexapod->updateStance(
-            0.3*translation_velocity_cmd.cast<double>(),
+            translation_velocity_cmd.cast<double>(),
             rotation_velocity_cmd.cast<double>(),
             dt.count());
           if (hexapod->needToStep())
@@ -680,29 +685,34 @@ int main(int argc, char** argv)
             if (hexapod_display)
               hexapod_display->updateLeg(curr_leg, i, angles);
 
-            Eigen::VectorXd body_force(6); body_force << 0,0,0,0,0,0;
+            Eigen::VectorXd ground_force(3); ground_force << 0,0,0;
             // std::cout << hexapod -> isStepping() << std::endl;
             if (hexapod -> isStepping())
             {
               if (curr_leg->getMode() == Leg::Mode::Flight)
               {
-                body_force(3) = 0;
+                ground_force(2) = 0;
               }    
               else
               {
-                body_force(3) = 21*9.8/3.0;
+                ground_force(2) = 21*9.8/3.0;
               }
                 
             }
             else
             {
-              body_force(3) = 21*9.8/6.0;
+              ground_force(2) = 21*9.8/6.0;
             }
             
-            hexapod -> computeDynamicTorques(i, angles, vels, accels, gravity_vec, torques, body_force);
+            hexapod -> computeDynamicTorques(i, angles, vels, accels, gravity_vec, torques, ground_force);
             
 
+            // test 
+            Eigen::VectorXd nan_vel(3); nan_vel << NAN, NAN, NAN;
+            // hexapod->setCommand(i, &nan_vel, &nan_vel, &nan_vel);
             hexapod->setCommand(i, &angles, &vels, &torques);
+
+            // std::cout << angles << std::endl;
           }
           hexapod->sendCommand();
           break;

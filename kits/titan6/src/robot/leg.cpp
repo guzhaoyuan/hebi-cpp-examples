@@ -152,23 +152,12 @@ Leg::Leg(double angle_rad, double distance, const Eigen::VectorXd& current_angle
                       I3);
     body_3_id = model -> AddBody(body_2_id, RigidBodyDynamics::Math::Xtrans(Vector3d(325.5*10e-3, 31.05*10e-3, 0*10e-3)), joint_3, body_3);
   }
-
-}
-
-// Compute jacobian given position and velocities
-bool Leg::computeJacobians(const Eigen::VectorXd& angles, Eigen::MatrixXd& jacobian_ee, robot_model::MatrixXdVector& jacobian_com)
-{
-  kin_->getJEndEffector(angles, jacobian_ee);
-  kin_->getJ(HebiFrameTypeCenterOfMass, angles, jacobian_com);
-}
-
-Eigen::MatrixXd Leg::computerJacobianBody(const Eigen::VectorXd& angles)
-{
+  // construct twist list
   bool isLeft = configuration == LegConfiguration::Left;
   const double t = isLeft?(4.5057/100):(-4.5057/100);
   // get body twist list first
-  int num_angles = angles.size();
-  Eigen::MatrixXd b_list(6, num_angles); // twist list
+  int num_angles = current_angles.size();
+  b_list = Eigen::MatrixXd(6, num_angles); // body twist list
   Eigen::Vector3d w(0,0,1);
   Eigen::Vector3d q(-L1-L2,t,0);
   Eigen::VectorXd twist(6);
@@ -189,8 +178,64 @@ Eigen::MatrixXd Leg::computerJacobianBody(const Eigen::VectorXd& angles)
   twist.segment<3>(3) = -w.cross(q);
   b_list.col(2) <<  twist;                //  joint3
 
- return mr::JacobianBody(b_list, angles);
+  // get spatial twist list 
+  s_list = Eigen::MatrixXd(6, num_angles); // spatial twist list
+  w = Eigen::Vector3d(0,0,1);
+  q = Eigen::Vector3d(0,0,0);
+  twist.segment<3>(0) = w;
+  twist.segment<3>(3) = -w.cross(q);
+  s_list.col(0) <<  twist;                 // joint1
 
+
+  w = isLeft?Eigen::Vector3d(0,1,0):Eigen::Vector3d(0,-1,0);
+  q = Eigen::Vector3d(0,0,d1Z);
+  twist.segment<3>(0) = w;
+  twist.segment<3>(3) = -w.cross(q);
+  s_list.col(1) <<  twist;                //  joint2
+
+  w = isLeft?Eigen::Vector3d(0,-1,0):Eigen::Vector3d(0,1,0);
+  q = Eigen::Vector3d(L1,0,d1Z);
+  twist.segment<3>(0) = w;
+  twist.segment<3>(3) = -w.cross(q);
+  s_list.col(2) <<  twist;                //  joint3
+
+}
+
+// Compute jacobian given position and velocities
+bool Leg::computeJacobians(const Eigen::VectorXd& angles, Eigen::MatrixXd& jacobian_ee, robot_model::MatrixXdVector& jacobian_com)
+{
+  kin_->getJEndEffector(angles, jacobian_ee);
+  kin_->getJ(HebiFrameTypeCenterOfMass, angles, jacobian_com);
+}
+
+// compute body jacobian use modern robotics lib
+Eigen::MatrixXd Leg::computerJacobianBody(const Eigen::VectorXd& angles)
+{   
+ return mr::JacobianBody(b_list, angles);
+}
+  
+Eigen::MatrixXd Leg::computerJacobianSpatial(const Eigen::VectorXd& angles)
+{   
+ return mr::JacobianSpace(s_list, angles);
+}
+  
+
+// compute FK transformation matrix use modern robotics lib. 
+// compare to computeFK function, this function gives rotation of the robot as well
+Eigen::MatrixXd Leg::computerEEFKInSpace(const Eigen::VectorXd& angles)
+{
+  bool isLeft = configuration == LegConfiguration::Left;
+  const double t = isLeft?(4.5057/100):(-4.5057/100);
+
+  // std::cout <<"reach " << __FILE__ << __LINE__ << std::endl;
+  // std::cout << s_list << std::endl;
+  Eigen::MatrixXd g_s0(4,4); /// transformation between center of the base link and the end effector
+  g_s0 << 1, 0, 0, L1+L2,
+          0, 1, 0,    -t,
+          0, 0, 1,   d1Z,
+          0, 0, 0,     1;
+
+  return mr::FKinSpace(g_s0, s_list, angles);
 }
  
 bool Leg::computeState(double t, Eigen::VectorXd& angles, Eigen::VectorXd& vels, Eigen::VectorXd& accels, Eigen::MatrixXd& jacobian_ee, robot_model::MatrixXdVector& jacobian_com)

@@ -6,6 +6,10 @@ namespace hebi {
 
 struct HexapodParameters
 {
+  // startup 
+  float startup_second;
+  float bias_record_second;
+  
   // Stance
   float stance_radius_;
   float default_body_height_;
@@ -16,6 +20,15 @@ struct HexapodParameters
   // Step threshold
   float step_threshold_rotate_; // rad
   float step_threshold_shift_; // m
+
+  // dynamic controller gains
+  float Kp_base;
+  float Kp_shoulder;
+  float Kp_elbow;
+  float Kd_base;
+  float Kd_shoulder;
+  float Kd_elbow;
+ 
 
   // Logging
   bool logging_enabled_;

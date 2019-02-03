@@ -17,6 +17,18 @@ void HexapodParameters::resetToDefaults()
   logging_enabled_ = true;
   low_log_frequency_hz_ = 5;
   high_log_frequency_hz_ = 200;
+
+  // start up
+  float startup_second = 4;
+  float bias_record_second = 2;
+
+  // dynamic controller gains
+  float Kp_base = 1;
+  float Kp_shoulder = 1;
+  float Kp_elbow = 1;
+  float Kd_base = 1;
+  float Kd_shoulder = 1;
+  float Kd_elbow = 1;
 }
 
 bool HexapodParameters::loadFromFile(std::string file)
@@ -31,7 +43,10 @@ bool HexapodParameters::loadFromFile(std::string file)
 
   auto stance = root.child("stance");
   auto step_thresh = root.child("step_threshold");
+  auto dyn = root.child("dynamics");
   auto logging = root.child("logging");
+  auto startup = root.child("startup");
+
   bool success =
     xml::trySetFloatParameter(stance.attribute("radius"), stance_radius_) &&
     xml::trySetFloatParameter(stance.attribute("body_height"), default_body_height_) &&
@@ -41,6 +56,16 @@ bool HexapodParameters::loadFromFile(std::string file)
   success = success &&
     xml::trySetFloatParameter(step_thresh.attribute("rotate"), step_threshold_rotate_) &&
     xml::trySetFloatParameter(step_thresh.attribute("shift"), step_threshold_shift_);
+  success = success &&
+    xml::trySetFloatParameter(startup.attribute("startup_second"), startup_second) &&
+    xml::trySetFloatParameter(startup.attribute("bias_record_second"), bias_record_second);
+  success = success &&
+    xml::trySetFloatParameter(dyn.attribute("Kp_base"), Kp_base) &&
+    xml::trySetFloatParameter(dyn.attribute("Kp_shoulder"), Kp_shoulder) &&
+    xml::trySetFloatParameter(dyn.attribute("Kp_elbow"), Kp_elbow) &&
+    xml::trySetFloatParameter(dyn.attribute("Kd_base"), Kp_base) &&
+    xml::trySetFloatParameter(dyn.attribute("Kd_shoulder"), Kp_shoulder) &&
+    xml::trySetFloatParameter(dyn.attribute("Kd_elbow"), Kp_elbow);
   success = success &&
     xml::trySetBoolParameter(logging.attribute("enabled"), logging_enabled_) &&
     xml::trySetFloatParameter(logging.attribute("low_frequency_hz"), low_log_frequency_hz_);
